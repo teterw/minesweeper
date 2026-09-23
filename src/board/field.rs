@@ -78,4 +78,8 @@ pub trait Field {
 
     /// Total mines on the board, if that is a knowable number.
     fn mine_total(&self) -> Option<usize>;
+
+    /// Lets the save code recover the concrete field behind the trait object. Only
+    /// infinite runs are saved, and only they need their chunks read back out.
+    fn as_any(&self) -> &dyn std::any::Any;
 }

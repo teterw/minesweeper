@@ -199,6 +199,10 @@ impl Field for InfiniteField {
     fn mine_total(&self) -> Option<usize> {
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]

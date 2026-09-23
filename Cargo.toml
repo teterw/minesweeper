@@ -1,0 +1,31 @@
+[package]
+name = "infinisweeper"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "An infinite Minesweeper for your terminal"
+repository = "https://github.com/teterw/minesweeper"
+license = "MIT"
+readme = "README.md"
+keywords = ["minesweeper", "game", "tui", "terminal", "infinite"]
+categories = ["games", "command-line-utilities"]
+
+[[bin]]
+name = "minesweeper"
+path = "src/main.rs"
+
+[lib]
+name = "infinisweeper"
+path = "src/lib.rs"
+
+[dependencies]
+base64 = "0.23.1"
+clap = { version = "4.5.61", features = ["derive"] }
+crossterm = "0.29.0"
+directories = "6.0.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[profile.release]
+lto = true
+opt-level = 3

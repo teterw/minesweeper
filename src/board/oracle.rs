@@ -123,9 +123,14 @@ mod tests {
         for y in -20..20i64 {
             for x in -20..20i64 {
                 let manual = [
-                    (-1, -1), (0, -1), (1, -1),
-                    (-1, 0), (1, 0),
-                    (-1, 1), (0, 1), (1, 1),
+                    (-1, -1),
+                    (0, -1),
+                    (1, -1),
+                    (-1, 0),
+                    (1, 0),
+                    (-1, 1),
+                    (0, 1),
+                    (1, 1),
                 ]
                 .iter()
                 .filter(|(dx, dy)| is_mine(9, x + dx, y + dy))
@@ -148,7 +153,14 @@ mod tests {
     fn works_at_and_across_zero() {
         // Purely that it does not panic and stays consistent around the origin seam,
         // where i64 -> u64 casts flip sign bits.
-        for &(x, y) in &[(0, 0), (-1, -1), (-1, 0), (0, -1), (i64::MIN + 1, 0), (i64::MAX, 0)] {
+        for &(x, y) in &[
+            (0, 0),
+            (-1, -1),
+            (-1, 0),
+            (0, -1),
+            (i64::MIN + 1, 0),
+            (i64::MAX, 0),
+        ] {
             let a = is_mine(5, x, y);
             assert_eq!(a, is_mine(5, x, y));
         }

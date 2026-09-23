@@ -237,7 +237,10 @@ mod tests {
         assert!(!g.timer_running(), "the clock ran before the first move");
         assert_eq!(g.elapsed(), Duration::ZERO);
         g.reveal_at_cursor();
-        assert!(g.timer_running(), "the clock did not start on the first reveal");
+        assert!(
+            g.timer_running(),
+            "the clock did not start on the first reveal"
+        );
     }
 
     #[test]
@@ -246,7 +249,11 @@ mod tests {
         let (x, y) = a_mine(&g);
         g.reveal(x, y);
         assert_eq!(g.lives, 2);
-        assert_eq!(g.status, Status::Playing, "one mine should not end an infinite run");
+        assert_eq!(
+            g.status,
+            Status::Playing,
+            "one mine should not end an infinite run"
+        );
 
         let mut hit = 1;
         let mut x = x;

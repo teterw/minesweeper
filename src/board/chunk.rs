@@ -101,7 +101,12 @@ impl ChunkStore {
     pub fn flagged_total(&self) -> usize {
         self.chunks
             .values()
-            .map(|c| c.flagged.iter().map(|w| w.count_ones() as usize).sum::<usize>())
+            .map(|c| {
+                c.flagged
+                    .iter()
+                    .map(|w| w.count_ones() as usize)
+                    .sum::<usize>()
+            })
             .sum()
     }
 

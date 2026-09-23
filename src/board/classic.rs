@@ -161,9 +161,7 @@ impl Field for ClassicField {
         if !self.in_bounds(x, y) {
             return false;
         }
-        self.mines
-            .as_ref()
-            .is_some_and(|m| m[self.idx(x, y)])
+        self.mines.as_ref().is_some_and(|m| m[self.idx(x, y)])
     }
 
     fn adjacent_mines(&self, x: i64, y: i64) -> u8 {
@@ -303,8 +301,16 @@ mod tests {
         for seed in 0..100u64 {
             let mut f = ClassicField::new(Difficulty::Expert, seed);
             let outcome = f.reveal(5, 5);
-            assert_ne!(outcome, RevealOutcome::Mine, "seed {seed} lost on click one");
-            assert_eq!(f.adjacent_mines(5, 5), 0, "seed {seed} opened beside a mine");
+            assert_ne!(
+                outcome,
+                RevealOutcome::Mine,
+                "seed {seed} lost on click one"
+            );
+            assert_eq!(
+                f.adjacent_mines(5, 5),
+                0,
+                "seed {seed} opened beside a mine"
+            );
         }
     }
 

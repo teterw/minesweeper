@@ -119,9 +119,7 @@ fn draw_status<W: Write>(out: &mut W, game: &Game, term_w: u16) -> io::Result<()
 fn draw_footer<W: Write>(out: &mut W, game: &Game, term_h: u16) -> io::Result<()> {
     let row = term_h.saturating_sub(1);
     let hint = match game.status {
-        Status::Playing => {
-            "left reveal  right flag  middle chord  ↑↓←→ move  r restart  q quit"
-        }
+        Status::Playing => "left reveal  right flag  middle chord  ↑↓←→ move  r restart  q quit",
         Status::Won => "you cleared it!   r play again   q quit",
         Status::Lost => "out of lives.   r new run   q quit",
     };

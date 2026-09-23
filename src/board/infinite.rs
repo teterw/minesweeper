@@ -263,7 +263,10 @@ mod tests {
         let RevealOutcome::Cleared(n) = f.reveal(x, y) else {
             panic!("start should be safe");
         };
-        assert!(n > 1, "a zero cell cleared only {n} cells; fill did not spread");
+        assert!(
+            n > 1,
+            "a zero cell cleared only {n} cells; fill did not spread"
+        );
     }
 
     /// Review Focus 5. The fill must stop and leave a consistent board rather than
@@ -370,7 +373,11 @@ mod tests {
             let (x, y) = InfiniteField::safe_start(seed);
             let f = InfiniteField::new(seed);
             assert!(!f.is_mine(x, y), "seed {seed} started on a mine");
-            assert_eq!(f.adjacent_mines(x, y), 0, "seed {seed} started beside a mine");
+            assert_eq!(
+                f.adjacent_mines(x, y),
+                0,
+                "seed {seed} started beside a mine"
+            );
         }
     }
 

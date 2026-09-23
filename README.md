@@ -75,7 +75,7 @@ Mouse and keyboard both work, always — use whichever you feel like mid-game.
 | Reveal          | Left click    | `Space`              |
 | Flag            | Right click   | `F`                  |
 | Chord           | Middle click  | `C`                  |
-| Pan the view    | Drag          | Move to the edge     |
+| Pan the view    | Scroll wheel  | Cursor reaches the edge |
 | Jump to origin  | —             | `O`                  |
 | New run         | —             | `R`                  |
 | Quit (saves)    | —             | `Q` / `Esc`          |
@@ -143,7 +143,7 @@ cd minesweeper
 cargo run --release
 ```
 
-Requires Rust 1.75 or newer. The only dependency that matters is
+Requires Rust 1.82 or newer. The only dependency that matters is
 [crossterm](https://github.com/crossterm-rs/crossterm), which handles the mouse, raw
 mode and resize events identically on Windows and Linux.
 

@@ -188,12 +188,13 @@ pub fn clear_run(dir: &Path) {
 pub fn rebuild(run: SavedRun) -> Game {
     let mut field = InfiniteField::new(run.seed);
     for c in &run.chunks {
-        let (Some(revealed), Some(flagged)) =
-            (b64_to_words(&c.revealed), b64_to_words(&c.flagged))
+        let (Some(revealed), Some(flagged)) = (b64_to_words(&c.revealed), b64_to_words(&c.flagged))
         else {
             continue;
         };
-        field.store_mut().insert((c.cx, c.cy), Chunk { revealed, flagged });
+        field
+            .store_mut()
+            .insert((c.cx, c.cy), Chunk { revealed, flagged });
     }
     for &(x, y) in &run.detonated {
         field.detonate(x, y);
@@ -268,7 +269,11 @@ mod tests {
         assert_eq!(restored.seed, 1234);
         assert_eq!(restored.lives, g.lives);
         assert_eq!(restored.cursor, cursor);
-        assert_eq!(restored.cleared(), cleared, "revealed cells did not survive");
+        assert_eq!(
+            restored.cleared(),
+            cleared,
+            "revealed cells did not survive"
+        );
         assert_eq!(
             restored.field.cell(cursor.0, cursor.1),
             CellState::Flagged,
@@ -363,7 +368,10 @@ mod tests {
         fs::write(run_path(&dir), serde_json::to_string(&run).unwrap()).unwrap();
 
         let restored = rebuild(load_run_from(&dir).unwrap());
-        assert!(restored.cleared() > 0, "a bad chunk discarded the good ones");
+        assert!(
+            restored.cleared() > 0,
+            "a bad chunk discarded the good ones"
+        );
     }
 
     #[test]
@@ -421,8 +429,14 @@ mod tests {
 
         let m = Mode::Classic(Difficulty::Beginner);
         assert!(s.record(m, 0, Duration::from_secs(60)));
-        assert!(!s.record(m, 0, Duration::from_secs(90)), "a slower time won");
-        assert!(s.record(m, 0, Duration::from_secs(30)), "a faster time lost");
+        assert!(
+            !s.record(m, 0, Duration::from_secs(90)),
+            "a slower time won"
+        );
+        assert!(
+            s.record(m, 0, Duration::from_secs(30)),
+            "a faster time lost"
+        );
         assert_eq!(s.beginner_best_secs, Some(30));
     }
 

@@ -3,9 +3,7 @@
 //! Mouse and keyboard converge on one `Action` enum here, so the game loop has a single
 //! code path and both input methods are tested the same way.
 
-use crossterm::event::{
-    Event, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind,
-};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind};
 
 use crate::render::Viewport;
 
@@ -118,15 +116,24 @@ mod tests {
         let (col, row) = v.to_screen(x, y).unwrap();
 
         assert_eq!(
-            map_event(&mouse(MouseEventKind::Down(MouseButton::Left), col, row), &v),
+            map_event(
+                &mouse(MouseEventKind::Down(MouseButton::Left), col, row),
+                &v
+            ),
             Some(Action::Reveal(x, y))
         );
         assert_eq!(
-            map_event(&mouse(MouseEventKind::Down(MouseButton::Right), col, row), &v),
+            map_event(
+                &mouse(MouseEventKind::Down(MouseButton::Right), col, row),
+                &v
+            ),
             Some(Action::Flag(x, y))
         );
         assert_eq!(
-            map_event(&mouse(MouseEventKind::Down(MouseButton::Middle), col, row), &v),
+            map_event(
+                &mouse(MouseEventKind::Down(MouseButton::Middle), col, row),
+                &v
+            ),
             Some(Action::Chord(x, y))
         );
     }
@@ -142,7 +149,10 @@ mod tests {
         // Below the board.
         let below = (viewport::HEADER_ROWS + v.rows) as u16;
         assert_eq!(
-            map_event(&mouse(MouseEventKind::Down(MouseButton::Left), 5, below), &v),
+            map_event(
+                &mouse(MouseEventKind::Down(MouseButton::Left), 5, below),
+                &v
+            ),
             None
         );
     }
@@ -185,7 +195,10 @@ mod tests {
     fn the_keyboard_covers_everything_the_mouse_does() {
         let v = vp();
         assert_eq!(map_event(&key(' '), &v), Some(Action::RevealAtCursor));
-        assert_eq!(map_event(&code(KeyCode::Enter), &v), Some(Action::RevealAtCursor));
+        assert_eq!(
+            map_event(&code(KeyCode::Enter), &v),
+            Some(Action::RevealAtCursor)
+        );
         assert_eq!(map_event(&key('f'), &v), Some(Action::FlagAtCursor));
         assert_eq!(map_event(&key('c'), &v), Some(Action::ChordAtCursor));
     }

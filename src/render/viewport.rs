@@ -121,7 +121,10 @@ mod tests {
         assert!(Viewport::new(10, 40).is_none());
         assert!(Viewport::new(0, 0).is_none());
         assert!(Viewport::new(1, 1).is_none());
-        assert!(Viewport::new(MIN_COLS, MIN_ROWS).is_some(), "the minimum should fit");
+        assert!(
+            Viewport::new(MIN_COLS, MIN_ROWS).is_some(),
+            "the minimum should fit"
+        );
     }
 
     #[test]
@@ -162,7 +165,10 @@ mod tests {
         for &(x, y) in &[(0i64, 0i64), (200, 50), (-200, -50), (0, -30), (17, 3)] {
             v.follow(x, y);
             assert!(v.contains(x, y), "cursor ({x},{y}) left the view");
-            assert!(x - v.origin_x >= MARGIN, "cursor too close to the left edge");
+            assert!(
+                x - v.origin_x >= MARGIN,
+                "cursor too close to the left edge"
+            );
             assert!(y - v.origin_y >= MARGIN, "cursor too close to the top edge");
             assert!(
                 v.origin_x + v.cols - 1 - x >= MARGIN,
@@ -202,12 +208,20 @@ mod tests {
     #[test]
     fn clicks_on_the_header_and_footer_are_not_board_clicks() {
         let v = vp(80, 24);
-        assert_eq!(v.to_world(10, 0), None, "a click on the status line hit the board");
+        assert_eq!(
+            v.to_world(10, 0),
+            None,
+            "a click on the status line hit the board"
+        );
         assert_eq!(v.to_world(10, 1), None);
         assert!(v.to_world(10, HEADER_ROWS as u16).is_some());
         let last = (HEADER_ROWS + v.rows - 1) as u16;
         assert!(v.to_world(10, last).is_some());
-        assert_eq!(v.to_world(10, last + 1), None, "a click below the board hit it");
+        assert_eq!(
+            v.to_world(10, last + 1),
+            None,
+            "a click below the board hit it"
+        );
     }
 
     #[test]

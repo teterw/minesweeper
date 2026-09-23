@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+
+# Local game state, in case anyone runs with a portable data dir
+run.json
+scores.json

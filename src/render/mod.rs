@@ -16,10 +16,17 @@ use crossterm::{
 use crate::board::field::CellState;
 use crate::game::{Game, Mode, Status};
 
-const HIDDEN: char = '▓';
-const EMPTY: char = '·';
+/// An unexplored cell is one square glyph with a blank column beside it, so the board
+/// reads as separate tiles in a grid rather than a single filled sea. The square comes
+/// from Geometric Shapes, which has far better font coverage than the shaded blocks.
+const TILE: char = '■';
+const TILE_COLOUR: Color = Color::AnsiValue(245);
+
+const CURSOR_BG: Color = Color::White;
+const CURSOR_FG: Color = Color::Black;
+
 const FLAG: char = '⚑';
-const BOOM: char = '✹';
+const BOOM: char = '*';
 
 /// The palette Minesweeper has used since 1990. Eight is grey because there is no ninth
 /// colour anyone remembers.
@@ -34,6 +41,37 @@ fn number_colour(n: u8) -> Color {
         7 => Color::Magenta,
         _ => Color::Grey,
     }
+}
+
+/// How one cell is drawn. Kept separate from `draw` so the board can be rendered as
+/// plain text for inspection without a terminal.
+pub fn cell_glyph(state: CellState) -> (char, Color) {
+    match state {
+        CellState::OutOfBounds => (' ', Color::Reset),
+        CellState::Hidden => (TILE, TILE_COLOUR),
+        CellState::Flagged => (FLAG, Color::Red),
+        CellState::Detonated => (BOOM, Color::Red),
+        CellState::Revealed(0) => (' ', Color::Reset),
+        CellState::Revealed(n) => (
+            char::from_digit(n as u32, 10).unwrap_or('?'),
+            number_colour(n),
+        ),
+    }
+}
+
+/// The visible board as plain text, one line per row. Used by the preview test and by
+/// anyone debugging what the player is actually looking at.
+pub fn plain_text(game: &Game, vp: &Viewport) -> String {
+    let mut out = String::new();
+    for dy in 0..vp.rows {
+        for dx in 0..vp.cols {
+            let (x, y) = (vp.origin_x + dx, vp.origin_y + dy);
+            out.push(cell_glyph(game.field.cell(x, y)).0);
+            out.push(' ');
+        }
+        out.push('\n');
+    }
+    out
 }
 
 fn thousands(n: usize) -> String {
@@ -156,24 +194,29 @@ pub fn draw<W: Write>(
         let state = game.field.cell(x, y);
         let is_cursor = (x, y) == game.cursor;
 
-        let (glyph, fg) = match state {
-            CellState::OutOfBounds => (' ', Color::Reset),
-            CellState::Hidden => (HIDDEN, Color::DarkGrey),
-            CellState::Flagged => (FLAG, Color::Red),
-            CellState::Detonated => (BOOM, Color::Red),
-            CellState::Revealed(0) => (EMPTY, Color::DarkGrey),
-            CellState::Revealed(n) => (
-                char::from_digit(n as u32, 10).unwrap_or('?'),
-                number_colour(n),
-            ),
-        };
+        let (glyph, fg) = cell_glyph(state);
 
+        // Each cell is one glyph plus a blank column. The gap is what separates the
+        // tiles into a grid instead of merging them into one filled mass.
         queue!(out, MoveTo(col, row))?;
         if is_cursor {
-            queue!(out, SetBackgroundColor(Color::DarkGrey))?;
+            queue!(
+                out,
+                SetBackgroundColor(CURSOR_BG),
+                SetForegroundColor(CURSOR_FG),
+                Print(glyph),
+                Print(' '),
+                ResetColor
+            )?;
+        } else {
+            queue!(
+                out,
+                SetForegroundColor(fg),
+                Print(glyph),
+                ResetColor,
+                Print(' ')
+            )?;
         }
-        queue!(out, SetForegroundColor(fg), Print(glyph))?;
-        queue!(out, Print(' '), ResetColor)?;
     }
 
     draw_footer(out, game, term_h)?;
@@ -250,6 +293,48 @@ mod tests {
                 draw(&mut buf, &g, &vp, w, h).unwrap();
             }
         }
+    }
+
+    /// Not an assertion — a way to eyeball the board without a terminal.
+    /// `cargo test preview -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn preview() {
+        let mut g = Game::new_infinite(20260924);
+        g.reveal_at_cursor();
+        let mut vp = Viewport::new(48, 20).unwrap();
+        vp.centre_on(g.cursor.0, g.cursor.1);
+        g.move_cursor(2, 1);
+        let (fx, fy) = (g.cursor.0 + 3, g.cursor.1);
+        g.toggle_flag(fx, fy);
+        println!("\n{}", plain_text(&g, &vp));
+    }
+
+    #[test]
+    fn plain_text_covers_the_whole_viewport() {
+        let mut g = Game::new_infinite(5);
+        g.reveal_at_cursor();
+        let vp = Viewport::new(40, 20).unwrap();
+        let text = plain_text(&g, &vp);
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(lines.len() as i64, vp.rows);
+        for line in lines {
+            assert_eq!(line.chars().count() as i64, vp.cols * 2);
+        }
+    }
+
+    #[test]
+    fn hidden_and_cleared_cells_look_different() {
+        // The bug this guards: both states rendering as the same dim glyph, which made
+        // explored and unexplored ground indistinguishable at a glance.
+        let hidden = cell_glyph(CellState::Hidden);
+        let cleared = cell_glyph(CellState::Revealed(0));
+        assert_ne!(
+            hidden.0, cleared.0,
+            "hidden and cleared cells use the same glyph"
+        );
+        assert_eq!(cleared.0, ' ', "cleared ground should be blank");
+        assert_eq!(hidden.0, TILE, "hidden ground should be a tile");
     }
 
     #[test]

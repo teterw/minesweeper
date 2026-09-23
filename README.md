@@ -5,17 +5,21 @@ An infinite Minesweeper for your terminal. No edges, no corners to run out of �
 ```
   ♥ ♥ ♡                  cleared 1,284                03:12
 
-        ·  ·  1  ▓  ▓  ▓  2  ·  ·  ·  1  ▓  ▓  ▓  ▓  ▓
-        ·  ·  1  1  2  ▓  2  1  1  ·  1  ▓  ▓  ▓  ▓  ▓
-        ·  ·  ·  ·  1  ⚑  1  ·  ·  ·  1  2  ▓  ▓  ▓  ▓
-        1  1  ·  ·  1  1  1  ·  ·  ·  ·  1  ▓  ▓  ▓  ▓
-        ▓  1  ·  ·  ·  ·  ·  ·  1  1  1  1  2  ▓  ▓  ▓
-        ▓  2  1  ·  ·  1  1  2  2 [▓] ▓  ▓  ▓  ▓  ▓  ▓
-        ▓  ▓  1  ·  ·  1  ⚑  2  ▓  ▓  ▓  ▓  ▓  ▓  ▓  ▓
-        ▓  ▓  2  1  1  1  1  2  ▓  ▓  ✹  ▓  ▓  ▓  ▓  ▓
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1 1 2 3 ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1     1 ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 2     1 ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1     1 2 ■ ■ ■ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1       1 ■ ■ ⚑ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1 1     1 ■ ■ ■ ■ ■ * ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1 1 1 1 ■ ■ ■ ■ ■ ■ ■ ■ ■
+  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
 
   left reveal   right flag   middle chord   ↑↓←→ move   q quit
 ```
+
+Unexplored ground is a grid of tiles; cleared ground is blank. Numbers keep the
+traditional colours, and the cell under the cursor inverts so you can always find it.
 
 ## Install
 
@@ -48,7 +52,7 @@ The main mode. The board has no boundary — scroll in any direction forever and
 terrain is generated as you reach it. Mine density is a constant 16% everywhere, so
 the board is exactly as fair a thousand cells out as it is where you started.
 
-You get **three lives**. Hitting a mine costs one and leaves the mine visible as `✹`,
+You get **three lives**. Hitting a mine costs one and leaves the mine visible as `*`,
 but the run continues; the third ends it. Your score is the number of cells you
 cleared.
 

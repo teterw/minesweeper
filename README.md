@@ -20,10 +20,11 @@ An infinite Minesweeper for your terminal. No edges, no corners to run out of â€
 ## Install
 
 ```sh
-cargo install minesweeper
+cargo install infinisweeper
 ```
 
-Then just:
+The crate is `infinisweeper` because `minesweeper` was already taken on crates.io. The
+command it installs is just:
 
 ```sh
 minesweeper

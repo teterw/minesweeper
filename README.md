@@ -3,23 +3,29 @@
 An infinite Minesweeper for your terminal. No edges, no corners to run out of — just keep clearing.
 
 ```
-  ♥ ♥ ♡                  cleared 1,284                03:12
+  lives ++-              cleared 1,284                03:12
 
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1 1 2 3 ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1     1 ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 2     1 ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1     1 2 ■ ■ ■ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1       1 ■ ■ ⚑ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1 1     1 ■ ■ ■ ■ ■ * ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ 1 1 1 1 ■ ■ ■ ■ ■ ■ ■ ■ ■
-  ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■
+  # # # # # # # # # # # # # # # # # # # # # # # #
+  # # # # # # # # # # 1 1 2 3 # # # # # # # # # #
+  # # # # # # # # # # 1     1 # # # # # # # # # #
+  # # # # # # # # # # 2     1 # # # # # # # # # #
+  # # # # # # # # # # 1     1 2 # # # # # # # # #
+  # # # # # # # # # # 1       1 # # F # # # # # #
+  # # # # # # # # # # 1 1     1 # # # # # * # # #
+  # # # # # # # # # # # 1 1 1 1 # # # # # # # # #
+  # # # # # # # # # # # # # # # # # # # # # # # #
 
-  left reveal   right flag   middle chord   ↑↓←→ move   q quit
+  left reveal   right flag   middle chord   arrows move   q quit
 ```
 
-Unexplored ground is a grid of tiles; cleared ground is blank. Numbers keep the
-traditional colours, and the cell under the cursor inverts so you can always find it.
+`#` is unexplored ground, blank is cleared, `F` is a flag and `*` is a mine you set off.
+Numbers keep the traditional colours and the cell under the cursor inverts, so the board
+is carried by colour rather than by decorative glyphs.
+
+Every character on the board is ASCII on purpose. Symbols like `■` and `⚑` have an
+*ambiguous* East Asian width, so whether a terminal gives them one column or two depends
+on the font — and one double-width glyph shifts the rest of its row and throws the whole
+grid out of alignment.
 
 ## Install
 

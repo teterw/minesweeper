@@ -16,17 +16,20 @@ use crossterm::{
 use crate::board::field::CellState;
 use crate::game::{Game, Mode, Status};
 
-/// An unexplored cell is one square glyph with a blank column beside it, so the board
-/// reads as separate tiles in a grid rather than a single filled sea. The square comes
-/// from Geometric Shapes, which has far better font coverage than the shaded blocks.
-const TILE: char = '■';
-const TILE_COLOUR: Color = Color::AnsiValue(245);
+// Every glyph drawn on the board is ASCII, deliberately.
+//
+// Characters like ■, ▓ and ⚑ have an "ambiguous" East Asian width: whether the terminal
+// gives them one column or two depends on the font and locale. In a grid that is fatal —
+// a single double-width glyph shifts the rest of its row by a column and the whole board
+// stops lining up. ASCII is exactly one column everywhere, so colour does the decorating
+// instead.
+const TILE: char = '#';
+const FLAG: char = 'F';
+const BOOM: char = '*';
 
+const TILE_COLOUR: Color = Color::AnsiValue(245);
 const CURSOR_BG: Color = Color::White;
 const CURSOR_FG: Color = Color::Black;
-
-const FLAG: char = '⚑';
-const BOOM: char = '*';
 
 /// The palette Minesweeper has used since 1990. Eight is grey because there is no ninth
 /// colour anyone remembers.
@@ -90,13 +93,14 @@ pub fn clock(secs: u64) -> String {
     format!("{:02}:{:02}", secs / 60, secs % 60)
 }
 
+/// Lives as ASCII pips for the same reason the board is ASCII — `♥` is ambiguous-width
+/// and would shift the rest of the status line.
 fn hearts(lives: u8, max: u8) -> String {
-    let mut s = String::new();
+    let mut s = String::from("lives ");
     for i in 0..max {
-        s.push(if i < lives { '♥' } else { '♡' });
-        s.push(' ');
+        s.push(if i < lives { '+' } else { '-' });
     }
-    s.trim_end().to_string()
+    s
 }
 
 /// Shown instead of a board when the window is too small to hold one.
@@ -157,7 +161,7 @@ fn draw_status<W: Write>(out: &mut W, game: &Game, term_w: u16) -> io::Result<()
 fn draw_footer<W: Write>(out: &mut W, game: &Game, term_h: u16) -> io::Result<()> {
     let row = term_h.saturating_sub(1);
     let hint = match game.status {
-        Status::Playing => "left reveal  right flag  middle chord  ↑↓←→ move  r restart  q quit",
+        Status::Playing => "left reveal  right flag  middle chord  arrows move  r restart  q quit",
         Status::Won => "you cleared it!   r play again   q quit",
         Status::Lost => "out of lives.   r new run   q quit",
     };
@@ -248,9 +252,58 @@ mod tests {
 
     #[test]
     fn hearts_show_lives_remaining() {
-        assert_eq!(hearts(3, 3), "♥ ♥ ♥");
-        assert_eq!(hearts(2, 3), "♥ ♥ ♡");
-        assert_eq!(hearts(0, 3), "♡ ♡ ♡");
+        assert_eq!(hearts(3, 3), "lives +++");
+        assert_eq!(hearts(2, 3), "lives ++-");
+        assert_eq!(hearts(0, 3), "lives ---");
+    }
+
+    /// The alignment bug: a glyph whose width the terminal decides for itself shifts the
+    /// rest of its row and the grid stops lining up. ASCII is one column everywhere.
+    #[test]
+    fn every_board_glyph_is_one_column_of_ascii() {
+        let mut states = vec![
+            CellState::Hidden,
+            CellState::Flagged,
+            CellState::Detonated,
+            CellState::OutOfBounds,
+        ];
+        for n in 0..=8u8 {
+            states.push(CellState::Revealed(n));
+        }
+        for s in states {
+            let (glyph, _) = cell_glyph(s);
+            assert!(
+                glyph.is_ascii(),
+                "{s:?} draws {glyph:?}, which is not ASCII and may render double-width"
+            );
+            assert_eq!(glyph.len_utf8(), 1, "{s:?} draws a multi-byte glyph");
+        }
+    }
+
+    #[test]
+    fn the_status_line_is_ascii_too() {
+        for lives in 0..=3u8 {
+            assert!(
+                hearts(lives, 3).is_ascii(),
+                "the lives indicator is not ASCII"
+            );
+        }
+        assert!(clock(192).is_ascii());
+        assert!(thousands(1284).is_ascii());
+    }
+
+    #[test]
+    fn every_row_of_the_board_is_exactly_the_same_width() {
+        // Catches alignment drift directly: if any cell rendered wider than two columns
+        // the rows would no longer match.
+        let mut g = Game::new_infinite(99);
+        g.reveal_at_cursor();
+        g.toggle_flag(g.cursor.0 + 2, g.cursor.1 + 1);
+        let vp = Viewport::new(60, 20).unwrap();
+        let text = plain_text(&g, &vp);
+        let widths: std::collections::HashSet<usize> =
+            text.lines().map(|l| l.chars().count()).collect();
+        assert_eq!(widths.len(), 1, "rows had differing widths: {widths:?}");
     }
 
     #[test]

@@ -87,12 +87,46 @@ Mouse and keyboard both work, always — use whichever you feel like mid-game.
 | Chord           | Middle click  | `C`                  |
 | Pan the view    | Scroll wheel  | Cursor reaches the edge |
 | Jump to origin  | —             | `O`                  |
+| Cycle board style | —           | `V`                  |
 | New run         | —             | `R`                  |
 | Quit (saves)    | —             | `Q` / `Esc`          |
 
 **Chording** reveals every neighbour of an already-revealed number once you've flagged
 exactly that many mines around it. It's how you play fast, and it's the single biggest
 difference between a beginner and a good player.
+
+## Board styles
+
+Six looks, switchable with **`v`** while you play so you can compare them on the same
+board, or chosen up front with `--style <name>`. The active one is named in the status
+line. Default is `dots`.
+
+| Style    | Cell width | What it does |
+| -------- | ---------: | ------------ |
+| `dots`   | 2 | Cleared ground keeps a dim `.`, so every column stays occupied |
+| `blank`  | 2 | Cleared ground is empty — cleanest, but the grid can be hard to follow |
+| `lines`  | 3 | A vertical rule after each cell, like a spreadsheet |
+| `shaded` | 2 | Every other column tinted, like ruled paper |
+| `blocks` | 2 | Unexplored ground is a filled block of colour rather than `#` |
+| `tight`  | 1 | One column per cell — twice as much board on screen |
+
+```
+blank                          dots
+# # # # # # # # # # # #        # # # # # # # # # # # #
+# # # 1 1 2 3 # # # # #        # # # 1 1 2 3 # # # # #
+# # # 1     1 # # # # #        # # # 1 . . 1 # # # # #
+# # # 2     1 # # # # #        # # # 2 . . 1 # # # # #
+# # # 1     1 2 # # # #        # # # 1 . . 1 2 # # # #
+
+lines                          tight
+# |# |# |# |# |# |# |          ############
+# |1 |1 |2 |3 |# |# |          ###1123#####
+# |1 |  |  |1 |# |# |          ###1..1#####
+# |2 |  |  |1 |# |# |          ###2..1#####
+```
+
+Whatever the style, every cell is exactly the same number of columns and every character
+is ASCII, so the grid lines up in any terminal. A test asserts both.
 
 ## How the infinite board works
 

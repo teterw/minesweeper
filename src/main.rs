@@ -18,7 +18,7 @@ use infinisweeper::game::{Game, Mode};
 use infinisweeper::input::{map_event, Action};
 use infinisweeper::menu::{self, MenuChoice};
 use infinisweeper::persist::{self, Scores};
-use infinisweeper::render::{self, Viewport};
+use infinisweeper::render::{self, Style, Viewport};
 
 const AUTOSAVE_EVERY: Duration = Duration::from_secs(30);
 const POLL: Duration = Duration::from_millis(200);
@@ -91,17 +91,21 @@ fn main() -> io::Result<()> {
         Launch::Classic(d) => Game::new_classic(d, random_seed()),
     };
 
-    play(&mut out, game, &dir, &mut scores)
+    // `dots` by default: blank cleared ground leaves nothing marking the columns, which
+    // makes the grid hard to read once a large area opens up. Press `v` to compare.
+    let style = cli.style.unwrap_or(Style::Dots);
+    play(&mut out, game, style, &dir, &mut scores)
 }
 
 fn play<W: Write>(
     out: &mut W,
     mut game: Game,
+    mut style: Style,
     dir: &std::path::Path,
     scores: &mut Scores,
 ) -> io::Result<()> {
     let (mut term_w, mut term_h) = size()?;
-    let mut vp = Viewport::new(term_w, term_h);
+    let mut vp = Viewport::with_cell_width(term_w, term_h, style.cell_width());
     if let Some(v) = vp.as_mut() {
         v.centre_on(game.cursor.0, game.cursor.1);
     }
@@ -111,7 +115,7 @@ fn play<W: Write>(
 
     loop {
         match vp.as_ref() {
-            Some(v) => render::draw(out, &game, v, term_w, term_h)?,
+            Some(v) => render::draw(out, &game, v, style, term_w, term_h)?,
             None => render::draw_too_small(out, term_w, term_h)?,
         }
 
@@ -138,6 +142,7 @@ fn play<W: Write>(
             origin_y: 0,
             cols: 1,
             rows: 1,
+            cell_w: style.cell_width(),
         });
         let Some(action) = map_event(&event::read()?, &map_vp) else {
             continue;
@@ -156,7 +161,16 @@ fn play<W: Write>(
             Action::Resize(w, h) => {
                 term_w = w;
                 term_h = h;
-                vp = Viewport::new(w, h);
+                vp = Viewport::with_cell_width(w, h, style.cell_width());
+                if let Some(v) = vp.as_mut() {
+                    v.centre_on(game.cursor.0, game.cursor.1);
+                }
+            }
+
+            Action::CycleStyle => {
+                style = style.next();
+                // Cell width can change with the style, so the viewport is rebuilt.
+                vp = Viewport::with_cell_width(term_w, term_h, style.cell_width());
                 if let Some(v) = vp.as_mut() {
                     v.centre_on(game.cursor.0, game.cursor.1);
                 }

@@ -20,6 +20,8 @@ pub enum Action {
     Pan(i64, i64),
     JumpToStart,
     Restart,
+    /// Switch to the next board style, for comparing them on the same board.
+    CycleStyle,
     Quit,
     Resize(u16, u16),
 }
@@ -73,6 +75,7 @@ pub fn map_event(event: &Event, vp: &Viewport) -> Option<Action> {
                 KeyCode::Char('c') | KeyCode::Char('C') => Some(Action::ChordAtCursor),
                 KeyCode::Char('o') | KeyCode::Char('O') => Some(Action::JumpToStart),
                 KeyCode::Char('r') | KeyCode::Char('R') => Some(Action::Restart),
+                KeyCode::Char('v') | KeyCode::Char('V') => Some(Action::CycleStyle),
                 KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => Some(Action::Quit),
                 _ => None,
             }
@@ -230,6 +233,13 @@ mod tests {
         for c in ['z', 'x', '1', '\\'] {
             assert_eq!(map_event(&key(c), &v), None, "{c} should do nothing");
         }
+    }
+
+    #[test]
+    fn v_cycles_the_board_style() {
+        let v = vp();
+        assert_eq!(map_event(&key('v'), &v), Some(Action::CycleStyle));
+        assert_eq!(map_event(&key('V'), &v), Some(Action::CycleStyle));
     }
 
     /// On Windows crossterm emits a Release for every key. Without filtering, one press

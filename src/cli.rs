@@ -3,6 +3,8 @@
 use clap::Parser;
 
 use crate::board::classic::Difficulty;
+use crate::render::style as render_style;
+use crate::render::Style;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -34,6 +36,18 @@ pub struct Cli {
     /// Play a specific infinite board; the same seed is the same board for everyone
     #[arg(long, requires = "infinite")]
     pub seed: Option<u64>,
+
+    /// Board look to start in: blank, dots, lines, shaded, blocks or tight. Press `v`
+    /// in game to cycle through them.
+    #[arg(long, value_parser = parse_style)]
+    pub style: Option<Style>,
+}
+
+fn parse_style(s: &str) -> Result<Style, String> {
+    Style::parse(s).ok_or_else(|| {
+        let names: Vec<_> = render_style::ALL.iter().map(|v| v.name()).collect();
+        format!("unknown style '{s}'; try one of: {}", names.join(", "))
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

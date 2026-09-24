@@ -1,7 +1,8 @@
 //! Which part of an endless board is on screen, and where a click landed.
 
-/// Cells are two terminal columns wide, because terminal cells are about twice as tall
-/// as they are wide and a one-column grid reads as badly squashed.
+/// Cells are two terminal columns wide by default, because terminal cells are about
+/// twice as tall as they are wide and a one-column grid reads as badly squashed. Some
+/// render styles use a different width, so the viewport carries it rather than assuming.
 pub const CELL_W: i64 = 2;
 
 /// Rows reserved above the board for the status line, and below it for the key hints.
@@ -23,6 +24,8 @@ pub struct Viewport {
     pub origin_y: i64,
     pub cols: i64,
     pub rows: i64,
+    /// Terminal columns each board cell occupies.
+    pub cell_w: i64,
 }
 
 impl Viewport {
@@ -30,10 +33,14 @@ impl Viewport {
     /// notice instead. Checking this before any arithmetic is what keeps a 15×5 window
     /// from underflowing the row count.
     pub fn new(term_w: u16, term_h: u16) -> Option<Self> {
-        if term_w < MIN_COLS || term_h < MIN_ROWS {
+        Self::with_cell_width(term_w, term_h, CELL_W)
+    }
+
+    pub fn with_cell_width(term_w: u16, term_h: u16, cell_w: i64) -> Option<Self> {
+        if term_w < MIN_COLS || term_h < MIN_ROWS || cell_w < 1 {
             return None;
         }
-        let cols = term_w as i64 / CELL_W;
+        let cols = term_w as i64 / cell_w;
         let rows = term_h as i64 - HEADER_ROWS - FOOTER_ROWS;
         if cols < 1 || rows < 1 {
             return None;
@@ -43,6 +50,7 @@ impl Viewport {
             origin_y: 0,
             cols,
             rows,
+            cell_w,
         })
     }
 
@@ -82,7 +90,7 @@ impl Viewport {
         if !self.contains(x, y) {
             return None;
         }
-        let col = (x - self.origin_x) * CELL_W;
+        let col = (x - self.origin_x) * self.cell_w;
         let row = y - self.origin_y + HEADER_ROWS;
         Some((col as u16, row as u16))
     }
@@ -93,7 +101,7 @@ impl Viewport {
         if row < HEADER_ROWS || row >= HEADER_ROWS + self.rows {
             return None;
         }
-        let x = self.origin_x + col as i64 / CELL_W;
+        let x = self.origin_x + col as i64 / self.cell_w;
         let y = self.origin_y + row - HEADER_ROWS;
         Some((x, y))
     }

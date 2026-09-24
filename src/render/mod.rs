@@ -13,7 +13,7 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 
-use crate::board::field::CellState;
+use crate::board::field::{CellState, Rect};
 use crate::game::{Game, Mode, Status};
 
 // Every glyph drawn on the board is ASCII, deliberately.
@@ -28,6 +28,7 @@ const FLAG: char = 'F';
 const BOOM: char = '*';
 
 const TILE_COLOUR: Color = Color::AnsiValue(245);
+const BORDER_COLOUR: Color = Color::AnsiValue(240);
 const CURSOR_BG: Color = Color::White;
 const CURSOR_FG: Color = Color::Black;
 
@@ -62,15 +63,48 @@ pub fn cell_glyph(state: CellState) -> (char, Color) {
     }
 }
 
-/// The visible board as plain text, one line per row. Used by the preview test and by
+/// The two characters of a border cell, if this coordinate sits on the frame around a
+/// finite board.
+///
+/// Without this, a classic board disappears as you clear it: a cleared cell and the void
+/// outside the board both draw as blank, so the edges dissolve and you lose track of
+/// where the board even is. The infinite field has no bounds, so it never gets a frame.
+///
+/// The frame is placed so the vertical bars land in the column immediately beside the
+/// board and the horizontal run joins them exactly, giving a closed box two columns per
+/// cell wide.
+fn border_at(b: Rect, x: i64, y: i64) -> Option<&'static str> {
+    let (left, right) = (b.x - 1, b.x + b.w);
+    let (top, bottom) = (b.y - 1, b.y + b.h);
+    let side = x == left || x == right;
+    let cap = y == top || y == bottom;
+
+    if side && cap {
+        Some(if x == left { " +" } else { "+ " })
+    } else if cap && b.contains(x, b.y) {
+        Some("--")
+    } else if side && y >= b.y && y < b.y + b.h {
+        Some(if x == left { " |" } else { "| " })
+    } else {
+        None
+    }
+}
+
+/// The visible board as plain text, one line per row. Used by the preview tests and by
 /// anyone debugging what the player is actually looking at.
 pub fn plain_text(game: &Game, vp: &Viewport) -> String {
+    let bounds = game.field.bounds();
     let mut out = String::new();
     for dy in 0..vp.rows {
         for dx in 0..vp.cols {
             let (x, y) = (vp.origin_x + dx, vp.origin_y + dy);
-            out.push(cell_glyph(game.field.cell(x, y)).0);
-            out.push(' ');
+            match bounds.and_then(|b| border_at(b, x, y)) {
+                Some(s) => out.push_str(s),
+                None => {
+                    out.push(cell_glyph(game.field.cell(x, y)).0);
+                    out.push(' ');
+                }
+            }
         }
         out.push('\n');
     }
@@ -190,11 +224,25 @@ pub fn draw<W: Write>(
     term_h: u16,
 ) -> io::Result<()> {
     draw_status(out, game, term_w)?;
+    let bounds = game.field.bounds();
 
     for (x, y) in vp.visible_cells() {
         let Some((col, row)) = vp.to_screen(x, y) else {
             continue;
         };
+
+        // A finite board gets a frame, so its edges stay visible once cleared.
+        if let Some(edge) = bounds.and_then(|b| border_at(b, x, y)) {
+            queue!(
+                out,
+                MoveTo(col, row),
+                SetForegroundColor(BORDER_COLOUR),
+                Print(edge),
+                ResetColor
+            )?;
+            continue;
+        }
+
         let state = game.field.cell(x, y);
         let is_cursor = (x, y) == game.cursor;
 
@@ -361,6 +409,79 @@ mod tests {
         let (fx, fy) = (g.cursor.0 + 3, g.cursor.1);
         g.toggle_flag(fx, fy);
         println!("\n{}", plain_text(&g, &vp));
+    }
+
+    /// `cargo test preview_classic -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn preview_classic() {
+        let mut g = Game::new_classic(Difficulty::Beginner, 4242);
+        g.reveal(4, 4);
+        let mut vp = Viewport::new(40, 18).unwrap();
+        vp.centre_on(4, 4);
+        println!("\n{}", plain_text(&g, &vp));
+    }
+
+    /// The bug: cleared cells and the void outside a finite board both draw blank, so a
+    /// classic board dissolved into the background as you cleared it.
+    #[test]
+    fn a_finite_board_keeps_a_visible_edge_once_cleared() {
+        let mut g = Game::new_classic(Difficulty::Beginner, 4242);
+        for y in 0..9 {
+            for x in 0..9 {
+                if !g.field.is_mine(x, y) {
+                    g.reveal(x, y);
+                }
+            }
+        }
+        let mut vp = Viewport::new(40, 18).unwrap();
+        vp.centre_on(4, 4);
+        let text = plain_text(&g, &vp);
+        assert!(
+            text.contains('+') && text.contains('|') && text.contains('-'),
+            "a fully cleared board drew no frame, so its edges are invisible:\n{text}"
+        );
+    }
+
+    #[test]
+    fn the_infinite_board_never_draws_a_frame() {
+        let mut g = Game::new_infinite(1);
+        g.reveal_at_cursor();
+        let vp = Viewport::new(40, 18).unwrap();
+        let text = plain_text(&g, &vp);
+        assert!(
+            !text.contains('+') && !text.contains('|'),
+            "an endless board drew a border it has no edges for"
+        );
+    }
+
+    #[test]
+    fn the_frame_surrounds_the_board_without_covering_it() {
+        let b = Rect {
+            x: 0,
+            y: 0,
+            w: 9,
+            h: 9,
+        };
+        // Corners.
+        assert_eq!(border_at(b, -1, -1), Some(" +"));
+        assert_eq!(border_at(b, 9, -1), Some("+ "));
+        assert_eq!(border_at(b, -1, 9), Some(" +"));
+        assert_eq!(border_at(b, 9, 9), Some("+ "));
+        // Edges.
+        assert_eq!(border_at(b, 4, -1), Some("--"));
+        assert_eq!(border_at(b, 4, 9), Some("--"));
+        assert_eq!(border_at(b, -1, 4), Some(" |"));
+        assert_eq!(border_at(b, 9, 4), Some("| "));
+        // Never over a playable cell.
+        for y in 0..9 {
+            for x in 0..9 {
+                assert_eq!(border_at(b, x, y), None, "the frame covered ({x},{y})");
+            }
+        }
+        // Nor far away.
+        assert_eq!(border_at(b, -5, -5), None);
+        assert_eq!(border_at(b, 20, 4), None);
     }
 
     #[test]

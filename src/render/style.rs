@@ -58,9 +58,9 @@ impl Cell {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
-    /// Filled tiles two columns wide with a blank column between them.
+    /// Filled tiles two columns wide, a blank column between them, rows touching.
     Tiles,
-    /// The same, one column of tile and one of gap.
+    /// The same tiles, with a blank row between them as well.
     Blocks,
     /// Two columns per cell, content then a gap.
     Dots,
@@ -106,8 +106,8 @@ impl Style {
     pub fn cell_width(self) -> i64 {
         match self {
             Style::Grid | Style::Boxed => 4,
-            Style::Lines | Style::Tiles => 3,
-            Style::Dots | Style::Blocks => 2,
+            Style::Lines | Style::Tiles | Style::Blocks => 3,
+            Style::Dots => 2,
             Style::Tight => 1,
         }
     }
@@ -124,13 +124,14 @@ impl Style {
     /// What is drawn under a cell, for styles that separate rows. Always exactly
     /// `cell_width()` characters, so the row beneath lines up with the one above.
     ///
-    /// A blank separator has to be wide to read as a separator at all, which pushes the
-    /// cells apart. A drawn rule separates them at the smallest possible size — one
-    /// column, one row — so `blocks` rules both axes rather than spacing them out.
+    /// A terminal row is the smallest vertical step there is, so the gap below a tile
+    /// cannot be made smaller — but it can be made to *look* smaller by widening the
+    /// tile. `blocks` uses a two-column tile against a one-column gap, which reads as a
+    /// modest seam; a one-column tile with the same gap is half space and looks sparse.
     pub fn row_rule(self) -> Option<&'static str> {
         match self {
             Style::Grid => Some("+---"),
-            Style::Blocks => Some("-+"),
+            Style::Blocks => Some("   "),
             _ => None,
         }
     }
@@ -174,7 +175,10 @@ impl Style {
             // never touch. Content sits in the tile's first column, which is where the
             // tile starts, so numbers and tiles share the same left edge and the grid
             // reads straight down.
-            Style::Tiles => {
+            //
+            // `blocks` and `tiles` draw a cell identically and differ only in whether a
+            // blank row follows it, which is what separates the rows.
+            Style::Tiles | Style::Blocks => {
                 let filled = matches!(state, CellState::Hidden | CellState::Flagged);
                 let body = if state == CellState::Hidden {
                     "  ".to_string()
@@ -190,31 +194,6 @@ impl Style {
                     },
                     bg: filled.then_some(BLOCK_BG),
                     bg_span: 0..2,
-                    glyph_at: 0,
-                }
-            }
-
-            // One column of tile and one of rule, with a matching rule beneath. The
-            // tightest separation a terminal allows: every cell is bounded on both axes
-            // by a single drawn line rather than by empty space.
-            Style::Blocks => {
-                let filled = matches!(state, CellState::Hidden | CellState::Flagged);
-                Cell {
-                    text: format!(
-                        "{}|",
-                        if state == CellState::Hidden {
-                            ' '
-                        } else {
-                            glyph
-                        }
-                    ),
-                    fg: if state == CellState::Hidden {
-                        BLOCK_BG
-                    } else {
-                        fg
-                    },
-                    bg: filled.then_some(BLOCK_BG),
-                    bg_span: 0..1,
                     glyph_at: 0,
                 }
             }
@@ -388,27 +367,27 @@ mod tests {
         }
     }
 
-    /// The whole point of `blocks`: every tile bounded on both axes, by a drawn line
-    /// rather than by empty space, so the separation costs one column and one row.
+    /// `blocks` separates tiles on both axes with blank space, and keeps the tile wider
+    /// than the gap so the seam reads as modest rather than as half the board.
     #[test]
-    fn blocks_rules_both_axes_at_the_smallest_size() {
+    fn blocks_separates_with_space_and_keeps_the_tile_wider_than_the_gap() {
         let cell = Style::Blocks.render(CellState::Hidden, 0, 0);
-        assert_eq!(Style::Blocks.cell_width(), 2, "tile plus one rule column");
-        assert_eq!(Style::Blocks.cell_height(), 2, "tile plus one rule row");
-        assert_eq!(
-            cell.bg_span,
-            0..1,
-            "the fill must not cover the rule column"
-        );
+        let width = Style::Blocks.cell_width();
+        assert_eq!(Style::Blocks.cell_height(), 2, "rows are not separated");
+
+        let tile = cell.bg_span.len() as i64;
+        let gap = width - tile;
         assert!(
-            cell.text.ends_with('|'),
-            "no vertical rule beside the tile: {:?}",
-            cell.text
+            tile > gap,
+            "the tile is {tile} columns against a {gap}-column gap, which looks sparse"
         );
-        let rule = Style::Blocks.row_rule().expect("no rule below the tile");
-        assert_eq!(
-            rule, "-+",
-            "the rule should meet the vertical one at a corner"
+
+        let rule = Style::Blocks
+            .row_rule()
+            .expect("no separator below the tile");
+        assert!(
+            rule.trim().is_empty(),
+            "the row beneath should be blank space, not a drawn rule: {rule:?}"
         );
     }
 

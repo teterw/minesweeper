@@ -103,8 +103,8 @@ line. Default is `blocks`.
 
 | Style    | Cell size | What it does |
 | -------- | --------: | ------------ |
-| `blocks` | 2 × 2 | Filled tiles ruled off on both axes by a single line |
-| `tiles`  | 3 × 1 | Wider filled tiles, gap beside only — denser, more board on screen |
+| `blocks` | 3 × 2 | Filled tiles with a narrow space on both axes |
+| `tiles`  | 3 × 1 | The same tiles, no space between rows — denser, more board on screen |
 | `dots`   | 2 × 1 | A `#` then a gap, no fill |
 | `grid`   | 4 × 2 | Boxed cells with a rule under every row |
 | `boxed`  | 4 × 1 | Vertical bars only, content centred between them |
@@ -112,20 +112,20 @@ line. Default is `blocks`.
 | `tight`  | 1 × 1 | One column per cell, no gaps |
 
 ```
-blocks  (# is a filled tile)     grid
-#|#|#|1|1|2|3|#|#|#|             | # | # | 1 | 1 | 2 | 3 |
--+-+-+-+-+-+-+-+-+-+             +---+---+---+---+---+---+
-#|#|#|1|.|.|1|#|#|#|             | # | # | 1 | . | . | 1 |
--+-+-+-+-+-+-+-+-+-+             +---+---+---+---+---+---+
-#|#|#|2|.|.|1|#|#|#|             | # | # | 2 | . | . | 1 |
+blocks  (## is a filled tile)       grid
+## ## ## 1  1  2  3  ## ##          | # | # | 1 | 1 | 2 | 3 |
+                                    +---+---+---+---+---+---+
+## ## ## 1  .  .  1  ## ##          | # | # | 1 | . | . | 1 |
+                                    +---+---+---+---+---+---+
+## ## ## 2  .  .  1  ## ##          | # | # | 2 | . | . | 1 |
 ```
 
 A tile needs separating below as much as beside, or tiles in consecutive rows run
-together vertically and the grid closes up again. `blocks` does it with a drawn rule
-rather than blank space, which separates at the smallest size a terminal allows — one
-column and one row. Blank space has to be wide before it reads as a gap at all, which
-pushes the cells apart. `tiles` skips the vertical separation entirely in exchange for
-twice as much board on screen.
+together vertically and the grid closes up again. A terminal row is the smallest
+vertical step there is, so that gap cannot be made narrower — but it can be made to
+*look* narrower by widening the tile. `blocks` runs a two-column tile against a
+one-column gap, which reads as a seam; a one-column tile with the same gap is half
+space and looks sparse. `tiles` drops the blank row entirely for twice the board.
 
 Three rules hold in every style, and tests enforce all of them:
 

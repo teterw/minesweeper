@@ -217,44 +217,33 @@ pub fn draw<W: Write>(
 
         queue!(out, MoveTo(col, row))?;
 
-        // Drawn in three pieces so a box's bars keep the rule colour and only the cell's
-        // own content takes the cursor highlight.
-        if gi > 0 {
-            if let Some(bg) = cell.bg {
-                queue!(out, SetBackgroundColor(bg))?;
-            }
-            queue!(
-                out,
-                SetForegroundColor(style.rule_colour()),
-                Print(chars[..gi].iter().collect::<String>()),
-                ResetColor
-            )?;
-        }
+        // Character by character, because a cell's background may cover only part of it.
+        // That partial fill is what keeps tiles apart: fill the whole cell and
+        // neighbouring tiles merge into one mass with no grid left to see.
+        for (i, ch) in chars.iter().enumerate() {
+            let content = i == gi;
+            let filled = cell.bg_span.contains(&i);
 
-        if is_cursor {
-            queue!(
-                out,
-                SetBackgroundColor(CURSOR_BG),
-                SetForegroundColor(CURSOR_FG)
-            )?;
-        } else {
-            if let Some(bg) = cell.bg {
-                queue!(out, SetBackgroundColor(bg))?;
+            if is_cursor && content {
+                queue!(
+                    out,
+                    SetBackgroundColor(CURSOR_BG),
+                    SetForegroundColor(CURSOR_FG)
+                )?;
+            } else {
+                if let Some(bg) = cell.bg.filter(|_| filled) {
+                    queue!(out, SetBackgroundColor(bg))?;
+                }
+                queue!(
+                    out,
+                    SetForegroundColor(if content {
+                        cell.fg
+                    } else {
+                        style.rule_colour()
+                    })
+                )?;
             }
-            queue!(out, SetForegroundColor(cell.fg))?;
-        }
-        queue!(out, Print(chars[gi]), ResetColor)?;
-
-        if gi + 1 < chars.len() {
-            if let Some(bg) = cell.bg {
-                queue!(out, SetBackgroundColor(bg))?;
-            }
-            queue!(
-                out,
-                SetForegroundColor(style.rule_colour()),
-                Print(chars[gi + 1..].iter().collect::<String>()),
-                ResetColor
-            )?;
+            queue!(out, Print(ch), ResetColor)?;
         }
 
         // Styles that separate rows draw their rule directly beneath the cell.
@@ -364,6 +353,30 @@ mod tests {
         g
     }
 
+    /// Renders a board showing filled background as `#`, since a plain-text replay
+    /// cannot show colour and a filled tile would otherwise look like empty space.
+    fn debug_text(game: &Game, vp: &Viewport, style: Style) -> String {
+        let mut out = String::new();
+        for dy in 0..vp.rows {
+            for dx in 0..vp.cols {
+                let (x, y) = (vp.origin_x + dx, vp.origin_y + dy);
+                let cell = style.render(game.field.cell(x, y), x, y);
+                for (i, ch) in cell.text.chars().enumerate() {
+                    let filled = cell.bg.is_some() && cell.bg_span.contains(&i);
+                    out.push(if filled && ch == ' ' { '#' } else { ch });
+                }
+            }
+            out.push('\n');
+            if let Some(rule) = style.row_rule() {
+                for _ in 0..vp.cols {
+                    out.push_str(rule);
+                }
+                out.push('\n');
+            }
+        }
+        out
+    }
+
     /// `cargo test preview_styles -- --ignored --nocapture`
     #[test]
     #[ignore]
@@ -378,7 +391,7 @@ mod tests {
                 style.name(),
                 style.cell_width()
             );
-            for line in screen(&g, &v, style, w, h).iter().take(12).skip(2) {
+            for line in debug_text(&g, &v, style).lines().take(9) {
                 println!("|{line}|");
             }
         }

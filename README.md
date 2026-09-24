@@ -97,40 +97,41 @@ difference between a beginner and a good player.
 
 ## Board styles
 
-Six looks, switchable with **`v`** while you play so you can compare them on the same
+Seven looks, switchable with **`v`** while you play so you can compare them on the same
 board, or chosen up front with `--style <name>`. The active one is named in the status
-line. Default is `grid`.
+line. Default is `tiles`.
 
 | Style    | Cell size | What it does |
 | -------- | --------: | ------------ |
+| `tiles`  | 3 × 1 | Filled tiles two columns wide with a gap between them |
+| `blocks` | 2 × 1 | The same, one column of tile and one of gap — twice the board |
+| `dots`   | 2 × 1 | A `#` then a gap, no fill |
 | `grid`   | 4 × 2 | Boxed cells with a rule under every row — maximum separation |
 | `boxed`  | 4 × 1 | Vertical bars only, content centred between them |
 | `lines`  | 3 × 1 | A single rule after each cell |
-| `dots`   | 2 × 1 | Content then a gap, compact |
-| `blocks` | 2 × 1 | Unexplored ground is a filled block of colour rather than `#` |
-| `tight`  | 1 × 1 | One column per cell — twice as much board on screen |
+| `tight`  | 1 × 1 | One column per cell, no gaps |
 
 ```
-grid                                 boxed
-| # | # | 1 | 1 | 2 | 3 | # |        | # | # | 1 | 1 | 2 | 3 | # |
-+---+---+---+---+---+---+---+        | # | # | 1 | . | . | 1 | # |
-| # | # | 1 | . | . | 1 | # |        | # | # | 2 | . | . | 1 | # |
-+---+---+---+---+---+---+---+        | # | # | 1 | . | . | 1 | 2 |
-| # | # | 2 | . | . | 1 | # |
-+---+---+---+---+---+---+---+        tight
-| # | # | 1 | . | . | 1 | 2 |        ###1123#####
-+---+---+---+---+---+---+---+        ###1..1#####
+tiles  (## is a filled tile)          grid
+## ## ## ## ## ## ## ##               | # | # | 1 | 1 | 2 | 3 |
+## ## 1  1  2  3  ## ##               +---+---+---+---+---+---+
+## ## 1  .  .  1  ## ##               | # | # | 1 | . | . | 1 |
+## ## 2  .  .  1  ## ##               +---+---+---+---+---+---+
+## ## 1  .  .  1  2  ##               | # | # | 2 | . | . | 1 |
 ```
 
-Two rules hold in every style, and tests enforce both:
+Three rules hold in every style, and tests enforce all of them:
 
+- **A filled tile never covers its whole cell.** At least one column is always left as a
+  gap, or neighbouring tiles touch and the board becomes one mass with no grid to see.
 - **Cleared ground is never blank.** An empty cell leaves nothing marking its column, and
   a large cleared area then reads as though the grid has come apart.
 - **Every cell is exactly the same number of columns, in ASCII.** Nothing can shift a row
   out of line, in any terminal or font.
 
-In the boxed styles the glyph sits exactly halfway between one bar and the next, so
-numbers look seated in their box rather than hugging its left edge.
+Content always starts in the same column its tile does, so numbers line up with the grid
+instead of sitting off to one side. In the boxed styles the glyph sits exactly halfway
+between one bar and the next.
 
 ## How the infinite board works
 

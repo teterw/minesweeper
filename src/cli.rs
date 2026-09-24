@@ -37,8 +37,8 @@ pub struct Cli {
     #[arg(long, requires = "infinite")]
     pub seed: Option<u64>,
 
-    /// Board look to start in: grid, boxed, lines, dots, blocks or tight. Press `v`
-    /// in game to cycle through them.
+    /// Board look to start in: tiles, blocks, dots, grid, boxed, lines or tight. Press
+    /// `v` in game to cycle through them.
     #[arg(long, value_parser = parse_style)]
     pub style: Option<Style>,
 }

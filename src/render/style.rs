@@ -3,12 +3,14 @@
 //!
 //! Cycle them in game with `v`, or start in one with `--style <name>`.
 //!
-//! Two rules hold for every style, and are enforced by tests:
+//! Three rules hold for every style, and are enforced by tests:
 //!
 //! - every cell renders to exactly `cell_width()` ASCII characters, so nothing can
 //!   shift a row out of alignment;
 //! - cleared ground is never blank. A blank cell leaves nothing marking its column, and
-//!   a large cleared area then reads as though the grid has come apart.
+//!   a large cleared area then reads as though the grid has come apart;
+//! - a filled tile never covers its whole cell. At least one column stays empty as a
+//!   gap, or neighbouring tiles touch and the board becomes one mass with no grid.
 
 use crossterm::style::Color;
 
@@ -31,43 +33,66 @@ pub struct Cell {
     pub text: String,
     pub fg: Color,
     pub bg: Option<Color>,
+    /// Which characters of `text` the background fills.
+    ///
+    /// This is what keeps filled tiles apart. If the fill covered the whole cell,
+    /// neighbouring tiles would touch and the board would become one solid mass with no
+    /// visible grid — which is exactly how the first `blocks` style went wrong.
+    pub bg_span: std::ops::Range<usize>,
     /// Which character of `text` is the cell's content, for highlighting the cursor.
     pub glyph_at: usize,
 }
 
+impl Cell {
+    /// A cell whose background, if any, covers only its content character.
+    fn plain(text: String, fg: Color, glyph_at: usize) -> Self {
+        Self {
+            text,
+            fg,
+            bg: None,
+            bg_span: glyph_at..glyph_at + 1,
+            glyph_at,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
+    /// Filled tiles two columns wide with a blank column between them.
+    Tiles,
+    /// The same, one column of tile and one of gap.
+    Blocks,
+    /// Two columns per cell, content then a gap.
+    Dots,
     /// Full boxes: vertical bars and a horizontal rule under every row.
     Grid,
     /// Vertical bars only, content centred between them.
     Boxed,
     /// A vertical rule after each cell.
     Lines,
-    /// Two columns per cell, content then a gap.
-    Dots,
-    /// Unexplored ground is a filled block of colour rather than a glyph.
-    Blocks,
     /// One column per cell, no gaps — twice as much board on screen.
     Tight,
 }
 
-pub const ALL: [Style; 6] = [
+pub const ALL: [Style; 7] = [
+    Style::Tiles,
+    Style::Blocks,
+    Style::Dots,
     Style::Grid,
     Style::Boxed,
     Style::Lines,
-    Style::Dots,
-    Style::Blocks,
     Style::Tight,
 ];
 
 impl Style {
     pub fn name(self) -> &'static str {
         match self {
+            Style::Tiles => "tiles",
+            Style::Blocks => "blocks",
+            Style::Dots => "dots",
             Style::Grid => "grid",
             Style::Boxed => "boxed",
             Style::Lines => "lines",
-            Style::Dots => "dots",
-            Style::Blocks => "blocks",
             Style::Tight => "tight",
         }
     }
@@ -81,7 +106,7 @@ impl Style {
     pub fn cell_width(self) -> i64 {
         match self {
             Style::Grid | Style::Boxed => 4,
-            Style::Lines => 3,
+            Style::Lines | Style::Tiles => 3,
             Style::Dots | Style::Blocks => 2,
             Style::Tight => 1,
         }
@@ -127,52 +152,62 @@ impl Style {
         let (glyph, fg) = self.glyph(state);
 
         match self {
-            Style::Tight => Cell {
-                text: glyph.to_string(),
-                fg,
-                bg: None,
-                glyph_at: 0,
-            },
+            Style::Tight => Cell::plain(glyph.to_string(), fg, 0),
 
-            Style::Dots => Cell {
-                text: format!("{glyph} "),
-                fg,
-                bg: None,
-                glyph_at: 0,
-            },
+            Style::Dots => Cell::plain(format!("{glyph} "), fg, 0),
 
-            Style::Lines => Cell {
-                text: format!("{glyph} |"),
-                fg,
-                bg: None,
-                glyph_at: 0,
-            },
+            Style::Lines => Cell::plain(format!("{glyph} |"), fg, 0),
 
             // Bar, space, glyph, space — which puts the glyph exactly halfway between
             // this cell's bar and the next one, so numbers sit centred in their box
             // instead of hugging the left edge.
-            Style::Grid | Style::Boxed => Cell {
-                text: format!("| {glyph} "),
-                fg,
-                bg: None,
-                glyph_at: 2,
-            },
+            Style::Grid | Style::Boxed => Cell::plain(format!("| {glyph} "), fg, 2),
 
-            Style::Blocks => {
-                if state == CellState::Hidden {
-                    Cell {
-                        text: "  ".into(),
-                        fg: BLOCK_BG,
-                        bg: Some(BLOCK_BG),
-                        glyph_at: 0,
-                    }
+            // A filled tile two columns wide, then a blank column so neighbouring tiles
+            // never touch. Content sits in the tile's first column, which is where the
+            // tile starts, so numbers and tiles share the same left edge and the grid
+            // reads straight down.
+            Style::Tiles => {
+                let filled = matches!(state, CellState::Hidden | CellState::Flagged);
+                let body = if state == CellState::Hidden {
+                    "  ".to_string()
                 } else {
-                    Cell {
-                        text: format!("{glyph} "),
-                        fg,
-                        bg: matches!(state, CellState::Flagged).then_some(BLOCK_BG),
-                        glyph_at: 0,
-                    }
+                    format!("{glyph} ")
+                };
+                Cell {
+                    text: format!("{body} "),
+                    fg: if state == CellState::Hidden {
+                        BLOCK_BG
+                    } else {
+                        fg
+                    },
+                    bg: filled.then_some(BLOCK_BG),
+                    bg_span: 0..2,
+                    glyph_at: 0,
+                }
+            }
+
+            // As `tiles`, but one column of tile and one of gap — half the width, so
+            // twice as much board fits on screen.
+            Style::Blocks => {
+                let filled = matches!(state, CellState::Hidden | CellState::Flagged);
+                Cell {
+                    text: format!(
+                        "{} ",
+                        if state == CellState::Hidden {
+                            ' '
+                        } else {
+                            glyph
+                        }
+                    ),
+                    fg: if state == CellState::Hidden {
+                        BLOCK_BG
+                    } else {
+                        fg
+                    },
+                    bg: filled.then_some(BLOCK_BG),
+                    bg_span: 0..1,
+                    glyph_at: 0,
                 }
             }
         }
@@ -333,6 +368,49 @@ mod tests {
                 style.name()
             );
             assert_eq!(style.row_rule(), None);
+        }
+    }
+
+    /// The `blocks` bug: the fill covered every column of the cell, so neighbouring
+    /// tiles touched and the board became one solid mass with no grid visible. A filled
+    /// cell must always leave at least one column unfilled as a gap.
+    #[test]
+    fn filled_tiles_always_leave_a_gap() {
+        for style in ALL {
+            for state in all_states() {
+                let cell = style.render(state, 0, 0);
+                if cell.bg.is_none() {
+                    continue;
+                }
+                let width = style.cell_width() as usize;
+                assert!(
+                    cell.bg_span.len() < width,
+                    "style {} fills all {width} columns for {state:?}, so tiles touch",
+                    style.name()
+                );
+                assert!(
+                    cell.bg_span.end <= width,
+                    "style {} fills past the end of its own cell",
+                    style.name()
+                );
+            }
+        }
+    }
+
+    /// Content and tile must share a left edge, or numbers look offset from the grid.
+    #[test]
+    fn tiles_and_their_content_start_in_the_same_column() {
+        for style in [Style::Tiles, Style::Blocks] {
+            let hidden = style.render(CellState::Hidden, 0, 0);
+            let number = style.render(CellState::Revealed(3), 0, 0);
+            assert_eq!(
+                hidden.bg_span.start,
+                number.glyph_at,
+                "style {}: the tile starts at {} but content sits at {}",
+                style.name(),
+                hidden.bg_span.start,
+                number.glyph_at
+            );
         }
     }
 

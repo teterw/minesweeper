@@ -99,17 +99,17 @@ difference between a beginner and a good player.
 
 Seven looks, switchable with **`v`** while you play so you can compare them on the same
 board, or chosen up front with `--style <name>`. The active one is named in the status
-line. Default is `blocks`.
+line. Default is `dots`.
 
 | Style    | Cell size | What it does |
 | -------- | --------: | ------------ |
-| `blocks` | 3 × 2 | Filled tiles with a narrow space on both axes |
-| `tiles`  | 3 × 1 | The same tiles, no space between rows — denser, more board on screen |
-| `dots`   | 2 × 1 | A `#` then a gap, no fill |
-| `grid`   | 4 × 2 | Boxed cells with a rule under every row |
-| `boxed`  | 4 × 1 | Vertical bars only, content centred between them |
+| `dots`   | 2 × 1 | A `#` then a gap — compact, every column marked |
+| `tight`  | 1 × 1 | One column per cell, no gaps — the most board on screen |
+| `tiles`  | 3 × 1 | Filled tiles with a gap beside them, rows touching |
+| `blocks` | 3 × 2 | The same tiles, with a blank row between them as well |
 | `lines`  | 3 × 1 | A single rule after each cell |
-| `tight`  | 1 × 1 | One column per cell, no gaps |
+| `boxed`  | 4 × 1 | Vertical bars, content centred between them |
+| `grid`   | 4 × 2 | Boxed cells with a rule under every row |
 
 ```
 blocks  (## is a filled tile)       grid
@@ -127,7 +127,13 @@ vertical step there is, so that gap cannot be made narrower — but it can be ma
 one-column gap, which reads as a seam; a one-column tile with the same gap is half
 space and looks sparse. `tiles` drops the blank row entirely for twice the board.
 
-Three rules hold in every style, and tests enforce all of them:
+Two things hold in every style regardless of which you pick. A **mine you set off is
+filled**, not left as a lone character among the tiles — it is the most important thing
+on the board and the easiest to miss. And the **cursor lights a cell's whole content
+area** rather than a single character, so it stays findable in the styles that spend
+three or four columns on a cell.
+
+Three more rules hold in every style, and tests enforce all of them:
 
 - **A filled tile never covers its whole cell.** At least one column is always left as a
   gap, or neighbouring tiles touch and the board becomes one mass with no grid to see.

@@ -223,8 +223,11 @@ pub fn draw<W: Write>(
         for (i, ch) in chars.iter().enumerate() {
             let content = i == gi;
             let filled = cell.bg_span.contains(&i);
+            // The cursor lights the cell's whole content area rather than one character,
+            // so it stays findable in the styles that spend three or four columns a cell.
+            let under_cursor = is_cursor && cell.content_span.contains(&i);
 
-            if is_cursor && content {
+            if under_cursor {
                 queue!(
                     out,
                     SetBackgroundColor(CURSOR_BG),

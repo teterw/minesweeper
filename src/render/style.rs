@@ -25,6 +25,7 @@ pub const CLEARED: char = '.';
 const TILE_COLOUR: Color = Color::AnsiValue(245);
 const DIM: Color = Color::AnsiValue(238);
 const BLOCK_BG: Color = Color::AnsiValue(243);
+const BOOM_BG: Color = Color::AnsiValue(88);
 const RULE: Color = Color::AnsiValue(240);
 
 /// What to put on screen for one board cell.
@@ -39,20 +40,32 @@ pub struct Cell {
     /// neighbouring tiles would touch and the board would become one solid mass with no
     /// visible grid — which is exactly how the first `blocks` style went wrong.
     pub bg_span: std::ops::Range<usize>,
-    /// Which character of `text` is the cell's content, for highlighting the cursor.
+    /// The part of `text` that belongs to this cell rather than to its decoration — the
+    /// tile and its gap, but not a shared rule. The cursor highlights this, so it stays
+    /// visible in the wide styles instead of lighting a single character.
+    pub content_span: std::ops::Range<usize>,
+    /// Which character of `text` is the cell's content.
     pub glyph_at: usize,
 }
 
 impl Cell {
-    /// A cell whose background, if any, covers only its content character.
-    fn plain(text: String, fg: Color, glyph_at: usize) -> Self {
+    /// A cell with no fill, whose content area is everything but the trailing rule.
+    fn plain(text: String, fg: Color, glyph_at: usize, content: std::ops::Range<usize>) -> Self {
         Self {
             text,
             fg,
             bg: None,
             bg_span: glyph_at..glyph_at + 1,
+            content_span: content,
             glyph_at,
         }
+    }
+
+    /// Paints the cell's whole content area, used to make a detonated mine unmissable.
+    fn filled(mut self, colour: Color) -> Self {
+        self.bg = Some(colour);
+        self.bg_span = self.content_span.clone();
+        self
     }
 }
 
@@ -74,14 +87,15 @@ pub enum Style {
     Tight,
 }
 
+/// Cycle order, starting at the default and running from compact to spacious.
 pub const ALL: [Style; 7] = [
+    Style::Dots,
+    Style::Tight,
     Style::Tiles,
     Style::Blocks,
-    Style::Dots,
-    Style::Grid,
-    Style::Boxed,
     Style::Lines,
-    Style::Tight,
+    Style::Boxed,
+    Style::Grid,
 ];
 
 impl Style {
@@ -147,7 +161,8 @@ impl Style {
             CellState::OutOfBounds => (' ', Color::Reset),
             CellState::Hidden => (TILE, TILE_COLOUR),
             CellState::Flagged => (FLAG, Color::Red),
-            CellState::Detonated => (BOOM, Color::Red),
+            // White, not red: it is drawn on a dark red fill, and red on red is unreadable.
+            CellState::Detonated => (BOOM, Color::White),
             CellState::Revealed(0) => (CLEARED, DIM),
             CellState::Revealed(n) => (
                 char::from_digit(n as u32, 10).unwrap_or('?'),
@@ -156,20 +171,32 @@ impl Style {
         }
     }
 
-    pub fn render(self, state: CellState, _x: i64, _y: i64) -> Cell {
+    pub fn render(self, state: CellState, x: i64, y: i64) -> Cell {
+        let cell = self.render_undecorated(state, x, y);
+        // A mine you set off is the single most important thing on the board, so it is
+        // filled rather than left as a lone character among the tiles.
+        if state == CellState::Detonated {
+            return cell.filled(BOOM_BG);
+        }
+        cell
+    }
+
+    fn render_undecorated(self, state: CellState, _x: i64, _y: i64) -> Cell {
         let (glyph, fg) = self.glyph(state);
 
         match self {
-            Style::Tight => Cell::plain(glyph.to_string(), fg, 0),
+            Style::Tight => Cell::plain(glyph.to_string(), fg, 0, 0..1),
 
-            Style::Dots => Cell::plain(format!("{glyph} "), fg, 0),
+            Style::Dots => Cell::plain(format!("{glyph} "), fg, 0, 0..2),
 
-            Style::Lines => Cell::plain(format!("{glyph} |"), fg, 0),
+            // The bar belongs to the boundary, not to either neighbour, so it stays out
+            // of the content area.
+            Style::Lines => Cell::plain(format!("{glyph} |"), fg, 0, 0..2),
 
             // Bar, space, glyph, space — which puts the glyph exactly halfway between
             // this cell's bar and the next one, so numbers sit centred in their box
             // instead of hugging the left edge.
-            Style::Grid | Style::Boxed => Cell::plain(format!("| {glyph} "), fg, 2),
+            Style::Grid | Style::Boxed => Cell::plain(format!("| {glyph} "), fg, 2, 1..4),
 
             // A filled tile two columns wide, then a blank column so neighbouring tiles
             // never touch. Content sits in the tile's first column, which is where the
@@ -194,6 +221,7 @@ impl Style {
                     },
                     bg: filled.then_some(BLOCK_BG),
                     bg_span: 0..2,
+                    content_span: 0..2,
                     glyph_at: 0,
                 }
             }
@@ -302,14 +330,12 @@ mod tests {
                 "style {} draws cleared ground as nothing at all",
                 style.name()
             );
-            if style != Style::Blocks {
-                assert_eq!(
-                    cell.text.chars().nth(cell.glyph_at),
-                    Some(CLEARED),
-                    "style {} does not mark cleared ground",
-                    style.name()
-                );
-            }
+            assert_eq!(
+                cell.text.chars().nth(cell.glyph_at),
+                Some(CLEARED),
+                "style {} does not mark cleared ground",
+                style.name()
+            );
         }
     }
 
@@ -367,6 +393,65 @@ mod tests {
         }
     }
 
+    /// The cursor highlights a cell's content area, so that area must exist, sit inside
+    /// the cell, and contain the glyph — otherwise the cursor is invisible or lands on a
+    /// shared rule that belongs to no cell.
+    #[test]
+    fn every_style_has_a_usable_content_area() {
+        for style in ALL {
+            for state in all_states() {
+                let cell = style.render(state, 0, 0);
+                let width = cell.text.chars().count();
+                assert!(
+                    !cell.content_span.is_empty(),
+                    "style {} has no content area, so the cursor would be invisible",
+                    style.name()
+                );
+                assert!(
+                    cell.content_span.end <= width,
+                    "style {}'s content area runs past its own cell",
+                    style.name()
+                );
+                assert!(
+                    cell.content_span.contains(&cell.glyph_at),
+                    "style {} puts its glyph outside its own content area",
+                    style.name()
+                );
+                assert!(
+                    cell.bg_span.end <= width,
+                    "style {}'s fill runs past its own cell",
+                    style.name()
+                );
+            }
+        }
+    }
+
+    /// A mine you set off is the most important thing on the board. Left as a lone
+    /// character among the tiles it is easy to miss, so every style fills it.
+    #[test]
+    fn a_detonated_mine_is_filled_in_every_style() {
+        for style in ALL {
+            let cell = style.render(CellState::Detonated, 0, 0);
+            assert!(
+                cell.bg.is_some(),
+                "style {} leaves a detonated mine unfilled",
+                style.name()
+            );
+            assert_eq!(
+                cell.bg_span,
+                cell.content_span,
+                "style {} fills only part of a detonated mine",
+                style.name()
+            );
+            assert_eq!(
+                cell.text.chars().nth(cell.glyph_at),
+                Some(BOOM),
+                "style {} does not mark a detonated mine",
+                style.name()
+            );
+        }
+    }
+
     /// `blocks` separates tiles on both axes with blank space, and keeps the tile wider
     /// than the gap so the seam reads as modest rather than as half the board.
     #[test]
@@ -398,6 +483,12 @@ mod tests {
     fn filled_tiles_always_leave_a_gap() {
         for style in ALL {
             for state in all_states() {
+                // A detonated mine is a highlight, not terrain: it fills its whole
+                // content area on purpose, and two of them touching is not a
+                // readability problem the way two hidden tiles touching is.
+                if state == CellState::Detonated {
+                    continue;
+                }
                 let cell = style.render(state, 0, 0);
                 if cell.bg.is_none() {
                     continue;

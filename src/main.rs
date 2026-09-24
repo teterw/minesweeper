@@ -91,9 +91,9 @@ fn main() -> io::Result<()> {
         Launch::Classic(d) => Game::new_classic(d, random_seed()),
     };
 
-    // `tiles` by default: the filled look of `blocks` with the alignment and spacing of
-    // `dots`. Press `v` to compare the others.
-    let style = cli.style.unwrap_or(Style::Tiles);
+    // `blocks` by default: filled tiles with a gap on both axes, so the grid reads as
+    // separated cells rather than a mass. Press `v` to compare the others.
+    let style = cli.style.unwrap_or(Style::Blocks);
     play(&mut out, game, style, &dir, &mut scores)
 }
 

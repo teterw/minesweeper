@@ -483,7 +483,9 @@ mod tests {
             }
         }
         for style in style::ALL {
-            let mut v = vp(40, 18, style);
+            // Tall and wide enough that the 9x9 board and its frame fit even in the
+            // styles that spend two rows or four columns on every cell.
+            let mut v = vp(60, 32, style);
             v.centre_on(4, 4);
             let text = plain_text(&g, &v, style);
             assert!(

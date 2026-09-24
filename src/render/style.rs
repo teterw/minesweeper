@@ -112,18 +112,25 @@ impl Style {
         }
     }
 
-    /// Terminal rows one cell occupies. Two means a rule is drawn beneath each row.
+    /// Terminal rows one cell occupies. Two means something is drawn beneath each row to
+    /// separate it from the next.
     pub fn cell_height(self) -> i64 {
         match self {
-            Style::Grid => 2,
+            Style::Grid | Style::Blocks => 2,
             _ => 1,
         }
     }
 
-    /// The rule drawn under a cell, for styles that separate rows.
+    /// What is drawn under a cell, for styles that separate rows. Always exactly
+    /// `cell_width()` characters, so the row beneath lines up with the one above.
+    ///
+    /// `blocks` uses blank space rather than a rule: a filled tile needs a gap below it
+    /// as much as beside it, or tiles in consecutive rows run together vertically and
+    /// the grid closes up again.
     pub fn row_rule(self) -> Option<&'static str> {
         match self {
             Style::Grid => Some("+---"),
+            Style::Blocks => Some("  "),
             _ => None,
         }
     }
@@ -352,23 +359,48 @@ mod tests {
     }
 
     #[test]
-    fn only_the_grid_style_rules_between_rows() {
-        assert_eq!(Style::Grid.cell_height(), 2);
-        assert_eq!(Style::Grid.row_rule(), Some("+---"));
-        assert_eq!(
-            Style::Grid.row_rule().map(|r| r.len() as i64),
-            Some(Style::Grid.cell_width()),
-            "the rule must be exactly as wide as the cell it sits under"
-        );
-        for style in ALL.into_iter().filter(|s| *s != Style::Grid) {
-            assert_eq!(
-                style.cell_height(),
-                1,
-                "{} claimed extra rows",
-                style.name()
-            );
-            assert_eq!(style.row_rule(), None);
+    fn row_rules_match_the_cells_they_sit_under() {
+        for style in ALL {
+            match style.row_rule() {
+                Some(rule) => {
+                    assert_eq!(
+                        style.cell_height(),
+                        2,
+                        "{} supplies a rule but claims one row",
+                        style.name()
+                    );
+                    assert_eq!(
+                        rule.chars().count() as i64,
+                        style.cell_width(),
+                        "{}'s rule {rule:?} is not as wide as its cell",
+                        style.name()
+                    );
+                    assert!(rule.is_ascii(), "{}'s rule is not ASCII", style.name());
+                }
+                None => assert_eq!(
+                    style.cell_height(),
+                    1,
+                    "{} claims two rows but draws nothing in the second",
+                    style.name()
+                ),
+            }
         }
+    }
+
+    /// The whole point of `blocks`: tiles separated on both axes.
+    #[test]
+    fn blocks_leaves_a_gap_below_each_tile_as_well_as_beside_it() {
+        let cell = Style::Blocks.render(CellState::Hidden, 0, 0);
+        assert!(
+            cell.bg_span.len() < Style::Blocks.cell_width() as usize,
+            "no gap beside the tile"
+        );
+        assert_eq!(Style::Blocks.cell_height(), 2, "no gap below the tile");
+        assert_eq!(
+            Style::Blocks.row_rule(),
+            Some("  "),
+            "the row beneath a tile should be empty, not ruled"
+        );
     }
 
     /// The `blocks` bug: the fill covered every column of the cell, so neighbouring

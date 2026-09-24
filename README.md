@@ -99,26 +99,30 @@ difference between a beginner and a good player.
 
 Seven looks, switchable with **`v`** while you play so you can compare them on the same
 board, or chosen up front with `--style <name>`. The active one is named in the status
-line. Default is `tiles`.
+line. Default is `blocks`.
 
 | Style    | Cell size | What it does |
 | -------- | --------: | ------------ |
-| `tiles`  | 3 × 1 | Filled tiles two columns wide with a gap between them |
-| `blocks` | 2 × 1 | The same, one column of tile and one of gap — twice the board |
+| `blocks` | 2 × 2 | Filled tiles with a gap on both axes — every cell stands alone |
+| `tiles`  | 3 × 1 | Wider filled tiles, gap beside only — denser, more board on screen |
 | `dots`   | 2 × 1 | A `#` then a gap, no fill |
-| `grid`   | 4 × 2 | Boxed cells with a rule under every row — maximum separation |
+| `grid`   | 4 × 2 | Boxed cells with a rule under every row |
 | `boxed`  | 4 × 1 | Vertical bars only, content centred between them |
 | `lines`  | 3 × 1 | A single rule after each cell |
 | `tight`  | 1 × 1 | One column per cell, no gaps |
 
 ```
-tiles  (## is a filled tile)          grid
-## ## ## ## ## ## ## ##               | # | # | 1 | 1 | 2 | 3 |
-## ## 1  1  2  3  ## ##               +---+---+---+---+---+---+
-## ## 1  .  .  1  ## ##               | # | # | 1 | . | . | 1 |
-## ## 2  .  .  1  ## ##               +---+---+---+---+---+---+
-## ## 1  .  .  1  2  ##               | # | # | 2 | . | . | 1 |
+blocks  (# is a filled tile)          grid
+# # # # 1 1 2 3 # # # #               | # | # | 1 | 1 | 2 | 3 |
+                                      +---+---+---+---+---+---+
+# # # # 1 . . 1 # # # #               | # | # | 1 | . | . | 1 |
+                                      +---+---+---+---+---+---+
+# # # # 2 . . 1 # # # #               | # | # | 2 | . | . | 1 |
 ```
+
+A tile needs a gap below it as much as beside it. Without the blank row, tiles in
+consecutive rows run together vertically and the grid closes up again — which is why
+`blocks` spends two rows per cell and `tiles` trades that separation for density.
 
 Three rules hold in every style, and tests enforce all of them:
 

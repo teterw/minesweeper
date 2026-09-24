@@ -124,13 +124,13 @@ impl Style {
     /// What is drawn under a cell, for styles that separate rows. Always exactly
     /// `cell_width()` characters, so the row beneath lines up with the one above.
     ///
-    /// `blocks` uses blank space rather than a rule: a filled tile needs a gap below it
-    /// as much as beside it, or tiles in consecutive rows run together vertically and
-    /// the grid closes up again.
+    /// A blank separator has to be wide to read as a separator at all, which pushes the
+    /// cells apart. A drawn rule separates them at the smallest possible size — one
+    /// column, one row — so `blocks` rules both axes rather than spacing them out.
     pub fn row_rule(self) -> Option<&'static str> {
         match self {
             Style::Grid => Some("+---"),
-            Style::Blocks => Some("  "),
+            Style::Blocks => Some("-+"),
             _ => None,
         }
     }
@@ -194,13 +194,14 @@ impl Style {
                 }
             }
 
-            // As `tiles`, but one column of tile and one of gap — half the width, so
-            // twice as much board fits on screen.
+            // One column of tile and one of rule, with a matching rule beneath. The
+            // tightest separation a terminal allows: every cell is bounded on both axes
+            // by a single drawn line rather than by empty space.
             Style::Blocks => {
                 let filled = matches!(state, CellState::Hidden | CellState::Flagged);
                 Cell {
                     text: format!(
-                        "{} ",
+                        "{}|",
                         if state == CellState::Hidden {
                             ' '
                         } else {
@@ -387,19 +388,27 @@ mod tests {
         }
     }
 
-    /// The whole point of `blocks`: tiles separated on both axes.
+    /// The whole point of `blocks`: every tile bounded on both axes, by a drawn line
+    /// rather than by empty space, so the separation costs one column and one row.
     #[test]
-    fn blocks_leaves_a_gap_below_each_tile_as_well_as_beside_it() {
+    fn blocks_rules_both_axes_at_the_smallest_size() {
         let cell = Style::Blocks.render(CellState::Hidden, 0, 0);
-        assert!(
-            cell.bg_span.len() < Style::Blocks.cell_width() as usize,
-            "no gap beside the tile"
-        );
-        assert_eq!(Style::Blocks.cell_height(), 2, "no gap below the tile");
+        assert_eq!(Style::Blocks.cell_width(), 2, "tile plus one rule column");
+        assert_eq!(Style::Blocks.cell_height(), 2, "tile plus one rule row");
         assert_eq!(
-            Style::Blocks.row_rule(),
-            Some("  "),
-            "the row beneath a tile should be empty, not ruled"
+            cell.bg_span,
+            0..1,
+            "the fill must not cover the rule column"
+        );
+        assert!(
+            cell.text.ends_with('|'),
+            "no vertical rule beside the tile: {:?}",
+            cell.text
+        );
+        let rule = Style::Blocks.row_rule().expect("no rule below the tile");
+        assert_eq!(
+            rule, "-+",
+            "the rule should meet the vertical one at a corner"
         );
     }
 

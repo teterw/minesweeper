@@ -26,6 +26,9 @@ pub struct Viewport {
     pub rows: i64,
     /// Terminal columns each board cell occupies.
     pub cell_w: i64,
+    /// Terminal rows each board cell occupies. Styles that draw horizontal rules between
+    /// cells use two: one for the content, one for the rule beneath it.
+    pub cell_h: i64,
 }
 
 impl Viewport {
@@ -33,15 +36,19 @@ impl Viewport {
     /// notice instead. Checking this before any arithmetic is what keeps a 15×5 window
     /// from underflowing the row count.
     pub fn new(term_w: u16, term_h: u16) -> Option<Self> {
-        Self::with_cell_width(term_w, term_h, CELL_W)
+        Self::with_cell_size(term_w, term_h, CELL_W, 1)
     }
 
     pub fn with_cell_width(term_w: u16, term_h: u16, cell_w: i64) -> Option<Self> {
-        if term_w < MIN_COLS || term_h < MIN_ROWS || cell_w < 1 {
+        Self::with_cell_size(term_w, term_h, cell_w, 1)
+    }
+
+    pub fn with_cell_size(term_w: u16, term_h: u16, cell_w: i64, cell_h: i64) -> Option<Self> {
+        if term_w < MIN_COLS || term_h < MIN_ROWS || cell_w < 1 || cell_h < 1 {
             return None;
         }
         let cols = term_w as i64 / cell_w;
-        let rows = term_h as i64 - HEADER_ROWS - FOOTER_ROWS;
+        let rows = (term_h as i64 - HEADER_ROWS - FOOTER_ROWS) / cell_h;
         if cols < 1 || rows < 1 {
             return None;
         }
@@ -51,6 +58,7 @@ impl Viewport {
             cols,
             rows,
             cell_w,
+            cell_h,
         })
     }
 
@@ -91,18 +99,18 @@ impl Viewport {
             return None;
         }
         let col = (x - self.origin_x) * self.cell_w;
-        let row = y - self.origin_y + HEADER_ROWS;
+        let row = (y - self.origin_y) * self.cell_h + HEADER_ROWS;
         Some((col as u16, row as u16))
     }
 
     /// World cell under a terminal column and row, if the click was on the board.
     pub fn to_world(&self, col: u16, row: u16) -> Option<(i64, i64)> {
         let row = row as i64;
-        if row < HEADER_ROWS || row >= HEADER_ROWS + self.rows {
+        if row < HEADER_ROWS || row >= HEADER_ROWS + self.rows * self.cell_h {
             return None;
         }
         let x = self.origin_x + col as i64 / self.cell_w;
-        let y = self.origin_y + row - HEADER_ROWS;
+        let y = self.origin_y + (row - HEADER_ROWS) / self.cell_h;
         Some((x, y))
     }
 

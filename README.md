@@ -99,34 +99,38 @@ difference between a beginner and a good player.
 
 Six looks, switchable with **`v`** while you play so you can compare them on the same
 board, or chosen up front with `--style <name>`. The active one is named in the status
-line. Default is `dots`.
+line. Default is `grid`.
 
-| Style    | Cell width | What it does |
-| -------- | ---------: | ------------ |
-| `dots`   | 2 | Cleared ground keeps a dim `.`, so every column stays occupied |
-| `blank`  | 2 | Cleared ground is empty — cleanest, but the grid can be hard to follow |
-| `lines`  | 3 | A vertical rule after each cell, like a spreadsheet |
-| `shaded` | 2 | Every other column tinted, like ruled paper |
-| `blocks` | 2 | Unexplored ground is a filled block of colour rather than `#` |
-| `tight`  | 1 | One column per cell — twice as much board on screen |
+| Style    | Cell size | What it does |
+| -------- | --------: | ------------ |
+| `grid`   | 4 × 2 | Boxed cells with a rule under every row — maximum separation |
+| `boxed`  | 4 × 1 | Vertical bars only, content centred between them |
+| `lines`  | 3 × 1 | A single rule after each cell |
+| `dots`   | 2 × 1 | Content then a gap, compact |
+| `blocks` | 2 × 1 | Unexplored ground is a filled block of colour rather than `#` |
+| `tight`  | 1 × 1 | One column per cell — twice as much board on screen |
 
 ```
-blank                          dots
-# # # # # # # # # # # #        # # # # # # # # # # # #
-# # # 1 1 2 3 # # # # #        # # # 1 1 2 3 # # # # #
-# # # 1     1 # # # # #        # # # 1 . . 1 # # # # #
-# # # 2     1 # # # # #        # # # 2 . . 1 # # # # #
-# # # 1     1 2 # # # #        # # # 1 . . 1 2 # # # #
-
-lines                          tight
-# |# |# |# |# |# |# |          ############
-# |1 |1 |2 |3 |# |# |          ###1123#####
-# |1 |  |  |1 |# |# |          ###1..1#####
-# |2 |  |  |1 |# |# |          ###2..1#####
+grid                                 boxed
+| # | # | 1 | 1 | 2 | 3 | # |        | # | # | 1 | 1 | 2 | 3 | # |
++---+---+---+---+---+---+---+        | # | # | 1 | . | . | 1 | # |
+| # | # | 1 | . | . | 1 | # |        | # | # | 2 | . | . | 1 | # |
++---+---+---+---+---+---+---+        | # | # | 1 | . | . | 1 | 2 |
+| # | # | 2 | . | . | 1 | # |
++---+---+---+---+---+---+---+        tight
+| # | # | 1 | . | . | 1 | 2 |        ###1123#####
++---+---+---+---+---+---+---+        ###1..1#####
 ```
 
-Whatever the style, every cell is exactly the same number of columns and every character
-is ASCII, so the grid lines up in any terminal. A test asserts both.
+Two rules hold in every style, and tests enforce both:
+
+- **Cleared ground is never blank.** An empty cell leaves nothing marking its column, and
+  a large cleared area then reads as though the grid has come apart.
+- **Every cell is exactly the same number of columns, in ASCII.** Nothing can shift a row
+  out of line, in any terminal or font.
+
+In the boxed styles the glyph sits exactly halfway between one bar and the next, so
+numbers look seated in their box rather than hugging its left edge.
 
 ## How the infinite board works
 

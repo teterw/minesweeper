@@ -88,6 +88,12 @@ pub fn plain_text(game: &Game, vp: &Viewport, style: Style) -> String {
             }
         }
         out.push('\n');
+        if let Some(rule) = style.row_rule() {
+            for _ in 0..vp.cols {
+                out.push_str(rule);
+            }
+            out.push('\n');
+        }
     }
     out
 }
@@ -206,24 +212,58 @@ pub fn draw<W: Write>(
 
         let cell = style.render(game.field.cell(x, y), x, y);
         let is_cursor = (x, y) == game.cursor;
+        let chars: Vec<char> = cell.text.chars().collect();
+        let gi = cell.glyph_at;
 
         queue!(out, MoveTo(col, row))?;
-        if is_cursor {
-            queue!(
-                out,
-                SetBackgroundColor(CURSOR_BG),
-                SetForegroundColor(CURSOR_FG),
-                Print(&cell.text),
-                ResetColor
-            )?;
-        } else {
+
+        // Drawn in three pieces so a box's bars keep the rule colour and only the cell's
+        // own content takes the cursor highlight.
+        if gi > 0 {
             if let Some(bg) = cell.bg {
                 queue!(out, SetBackgroundColor(bg))?;
             }
             queue!(
                 out,
-                SetForegroundColor(cell.fg),
-                Print(&cell.text),
+                SetForegroundColor(style.rule_colour()),
+                Print(chars[..gi].iter().collect::<String>()),
+                ResetColor
+            )?;
+        }
+
+        if is_cursor {
+            queue!(
+                out,
+                SetBackgroundColor(CURSOR_BG),
+                SetForegroundColor(CURSOR_FG)
+            )?;
+        } else {
+            if let Some(bg) = cell.bg {
+                queue!(out, SetBackgroundColor(bg))?;
+            }
+            queue!(out, SetForegroundColor(cell.fg))?;
+        }
+        queue!(out, Print(chars[gi]), ResetColor)?;
+
+        if gi + 1 < chars.len() {
+            if let Some(bg) = cell.bg {
+                queue!(out, SetBackgroundColor(bg))?;
+            }
+            queue!(
+                out,
+                SetForegroundColor(style.rule_colour()),
+                Print(chars[gi + 1..].iter().collect::<String>()),
+                ResetColor
+            )?;
+        }
+
+        // Styles that separate rows draw their rule directly beneath the cell.
+        if let Some(rule) = style.row_rule() {
+            queue!(
+                out,
+                MoveTo(col, row + 1),
+                SetForegroundColor(style.rule_colour()),
+                Print(rule),
                 ResetColor
             )?;
         }
@@ -240,7 +280,7 @@ mod tests {
     use crate::board::field::CellState;
 
     fn vp(w: u16, h: u16, style: Style) -> Viewport {
-        Viewport::with_cell_width(w, h, style.cell_width()).expect("should fit")
+        Viewport::with_cell_size(w, h, style.cell_width(), style.cell_height()).expect("should fit")
     }
 
     /// Replays what `draw` actually sends to the terminal into a character grid, by
@@ -445,8 +485,8 @@ mod tests {
     fn the_infinite_board_never_draws_a_frame() {
         let mut g = Game::new_infinite(1);
         g.reveal_at_cursor();
-        let v = vp(40, 18, Style::Blank);
-        let text = plain_text(&g, &v, Style::Blank);
+        let v = vp(40, 18, Style::Dots);
+        let text = plain_text(&g, &v, Style::Dots);
         assert!(
             !text.contains('+') && !text.contains('|'),
             "an endless board drew a border it has no edges for"
@@ -485,7 +525,13 @@ mod tests {
             let v = vp(40, 20, style);
             let text = plain_text(&g, &v, style);
             let lines: Vec<_> = text.lines().collect();
-            assert_eq!(lines.len() as i64, v.rows);
+            // Styles that rule between rows emit a line per cell row plus a rule line.
+            assert_eq!(
+                lines.len() as i64,
+                v.rows * v.cell_h,
+                "style {} produced the wrong number of lines",
+                style.name()
+            );
             for line in lines {
                 assert_eq!(
                     line.chars().count() as i64,
@@ -539,9 +585,9 @@ mod tests {
         let mut g = Game::new_infinite(3);
         g.reveal_at_cursor();
         g.status = Status::Lost;
-        let v = vp(80, 24, Style::Blank);
+        let v = vp(80, 24, Style::Dots);
         let mut buf = Vec::new();
-        draw(&mut buf, &g, &v, Style::Blank, 80, 24).unwrap();
+        draw(&mut buf, &g, &v, Style::Dots, 80, 24).unwrap();
         assert!(String::from_utf8_lossy(&buf).contains("out of lives"));
     }
 }

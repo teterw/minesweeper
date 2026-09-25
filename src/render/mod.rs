@@ -158,26 +158,36 @@ fn draw_status<W: Write>(out: &mut W, game: &Game, style: Style, term_w: u16) ->
     )
 }
 
-fn draw_footer<W: Write>(out: &mut W, game: &Game, term_h: u16) -> io::Result<()> {
+// Both lines fit a standard 80-column terminal.
+const MOUSE_HINT: &str = "mouse: left reveal  right flag  middle chord   v style  r restart  q quit";
+const KEYS_HINT: &str = "keys: arrows/wasd move  space reveal  f flag  c chord  o back to start";
+
+/// Cuts a hint to the window width. A line that runs into the last column of the bottom
+/// row would wrap and scroll the whole screen up by one.
+fn fit(hint: &str, term_w: u16) -> &str {
+    let max = term_w.saturating_sub(1) as usize;
+    match hint.char_indices().nth(max) {
+        Some((i, _)) => &hint[..i],
+        None => hint,
+    }
+}
+
+fn draw_footer<W: Write>(out: &mut W, game: &Game, term_w: u16, term_h: u16) -> io::Result<()> {
     let row = term_h.saturating_sub(1);
-    let hint = match game.status {
-        Status::Playing => "left reveal  right flag  middle chord  v style  r restart  q quit",
-        Status::Won => "you cleared it!   r play again   q quit",
-        Status::Lost => "out of lives.   r new run   q quit",
-    };
-    let colour = match game.status {
-        Status::Playing => Color::DarkGrey,
-        Status::Won => Color::Green,
-        Status::Lost => Color::Red,
+    let (upper, lower, colour) = match game.status {
+        Status::Playing => (MOUSE_HINT, KEYS_HINT, Color::DarkGrey),
+        Status::Won => ("", "you cleared it!   r play again   q quit", Color::Green),
+        Status::Lost => ("", "out of lives.   r new run   q quit", Color::Red),
     };
     queue!(
         out,
         MoveTo(0, row.saturating_sub(1)),
         Clear(ClearType::CurrentLine),
+        SetForegroundColor(colour),
+        Print(fit(upper, term_w)),
         MoveTo(0, row),
         Clear(ClearType::CurrentLine),
-        SetForegroundColor(colour),
-        Print(hint),
+        Print(fit(lower, term_w)),
         ResetColor
     )
 }
@@ -261,7 +271,7 @@ pub fn draw<W: Write>(
         }
     }
 
-    draw_footer(out, game, term_h)?;
+    draw_footer(out, game, term_w, term_h)?;
     out.flush()
 }
 
@@ -596,6 +606,24 @@ mod tests {
         let text = String::from_utf8_lossy(&buf);
         assert!(text.contains("too small"));
         assert!(text.contains("15 x 5"));
+    }
+
+    #[test]
+    fn the_footer_lists_mouse_and_keyboard_controls() {
+        let mut g = Game::new_infinite(4);
+        g.reveal_at_cursor();
+        let (w, h) = (80u16, 24u16);
+        let v = vp(w, h, Style::Dots);
+        let rows = screen(&g, &v, Style::Dots, w, h);
+        assert!(rows[h as usize - 2].starts_with(MOUSE_HINT));
+        assert!(rows[h as usize - 1].starts_with(KEYS_HINT));
+    }
+
+    #[test]
+    fn hints_never_reach_the_last_column() {
+        assert_eq!(fit("abcdef", 4), "abc");
+        assert_eq!(fit("abc", 80), "abc");
+        assert_eq!(fit("abc", 0), "");
     }
 
     #[test]
